@@ -76,7 +76,10 @@ void ClientThread::setup()
 		send_key();
 	}
 }
-
+/*
+ * creates client requests, sends to primary, waits for response
+ *
+ */
 RC ClientThread::run()
 {
 

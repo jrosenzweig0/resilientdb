@@ -1,3 +1,24 @@
+## Attention: This is a Fork of [ResilientDB](https://github.com/resilientdb/resilientdb)
+For the purposes of our ECS265 Final Project
+
+# ECS265 CAPsized Final Project: Raft in ResilientDB
+## Lead: Jonathan Rosenzweig 
+## Members: Dan Hoang, David Pham, Di Zhao, Ryan Tsang
+
+This project aims to implement the Raft consensus protocol using the ResilientDB platform. Currently, ResilientDB reaches local consensus using PBFT. Our group intends to modify the existing codebase to use Raft instead of PBFT
+
+## Implementation Notes
+
+We want to change the preprepare stage of pbft so that instead of communicating with each other, worker nodes only communicate with the leader. 
+
+change process_batch to append_entries 
+send_pbft_prep_msgs -> append_entries_response
+
+### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
+Everything we need is probably in `system` and `client` folders
+
+
+---
 # ResilientDB: A High-throughput yielding Permissioned Blockchain Fabric.
 
 ### ResilientDB aims at *Making Permissioned Blockchain Systems Fast Again*. ResilientDB makes *system-centric* design decisions by adopting a *multi-thread architecture* that encompasses *deep-pipelines*. Further, we *separate* the ordering of client transactions from their execution, which allows us to perform *out-of-order processing of messages*.

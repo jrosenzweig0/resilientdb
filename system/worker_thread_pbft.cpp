@@ -55,7 +55,7 @@ RC WorkerThread::process_client_batch(Message *msg)
 }
 
 /**
- * Process incoming BatchRequests message from the Primary.
+ * Process incoming BatchRequests message from the Primary. (Pre-Prepare)
  *
  * This function is used by the non-primary or backup replicas to process an incoming
  * BatchRequests message sent by the primary replica. This processing would require 

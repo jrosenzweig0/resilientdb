@@ -93,10 +93,10 @@ void WorkerThread::process(Message *msg)
     case KEYEX:
         rc = process_key_exchange(msg);
         break;
-    case CL_BATCH:
+    case CL_BATCH: 
         rc = process_client_batch(msg);
         break;
-    case BATCH_REQ:
+    case BATCH_REQ: // preprepare?, when node runs when it receives preprepare message, try to send n^2 prepare
         rc = process_batch(msg);
         break;
     case PBFT_CHKPT_MSG:
