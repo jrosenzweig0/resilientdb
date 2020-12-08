@@ -32,10 +32,18 @@ public:
 
     bool validate_msg(Message *msg);
     bool checkMsg(Message *msg);
-    RC process_client_batch(Message *msg);
-    RC process_batch(Message *msg);
-    void send_checkpoints(uint64_t txn_id);
-    RC process_pbft_chkpt_msg(Message *msg);
+
+    /******* RAFT *******/
+
+    RC process_apnd_entry(Message *msg);        // worker_thread_raft
+    RC process_apnd_entry_resp(Message *msg);   // worker_thread_raft
+
+    /********************/
+
+    RC process_client_batch(Message *msg);      // worker_thread_pbft (primary receive client request, pre-prepare)
+    RC process_batch(Message *msg);             // worker_thread_pbft (non-primary receive client request, send prepare O(n^2))
+    void send_checkpoints(uint64_t txn_id); 
+    RC process_pbft_chkpt_msg(Message *msg);    
 #if BANKING_SMART_CONTRACT
     void init_txn_man(BankingSmartContractMessage *bscm);
 #else
@@ -65,11 +73,11 @@ public:
     void fail_nonprimary();
 #endif
 
-    bool prepared(PBFTPrepMessage *msg);
-    RC process_pbft_prep_msg(Message *msg);
+    bool prepared(PBFTPrepMessage *msg);            // moved to worker_thread_pbft (checks for 2f+1)
+    RC process_pbft_prep_msg(Message *msg);         // worker_thread_pbft (receive prepare, send commit)
 
-    bool committed_local(PBFTCommitMessage *msg);
-    RC process_pbft_commit_msg(Message *msg);
+    bool committed_local(PBFTCommitMessage *msg);   // worker_thread_pbft (checks for 2f+1)
+    RC process_pbft_commit_msg(Message *msg);       // worker_thread_pbft (receive commit)
 
 #if TESTING_ON
     void testcases(Message *msg);

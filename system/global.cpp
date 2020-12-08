@@ -162,6 +162,27 @@ string calculateHash(string str)
 	return std::string((char *)aDigest, CryptoPP::SHA256::DIGESTSIZE);
 }
 
+/********** RAFT ADDITIONS **********/
+
+// Entities for maintaining currentTerm
+uint64_t currentTerm = 0; // current term of the protocol (== # of leader changes)
+std::mutex cTermMTX;
+void inc_currentTerm() {
+	cTermMTX.lock();
+	currentTerm++;
+	cTermMTX.unlock();
+}
+
+uint64_t get_currentTerm() {
+	uint64_t cval;
+	cTermMTX.lock();
+	cval = currentTerm;
+	cTermMTX.unlock();
+	return cval;
+}
+
+/************************************/
+
 // Entities for maintaining g_next_index.
 uint64_t g_next_index = 0; //index of the next txn to be executed
 std::mutex gnextMTX;

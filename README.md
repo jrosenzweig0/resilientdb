@@ -9,10 +9,76 @@ This project aims to implement the Raft consensus protocol using the ResilientDB
 
 ## Implementation Notes
 
-We want to change the preprepare stage of pbft so that instead of communicating with each other, worker nodes only communicate with the leader. 
+- We want to change the preprepare stage of pbft so that instead of communicating with each other, worker nodes only communicate with the leader. 
 
-change process_batch to append_entries 
-send_pbft_prep_msgs -> append_entries_response
+- leader id is located in global.cpp, saved as local_view, initialized to be 0 
+
+- process_client_batch receives client request and forwards pbft pre-prepare message, we edit this so it sends append_entries message instead
+
+- change process_batch to append_entries 
+- send_pbft_prep_msgs -> append_entries_response
+
+- the ledger is the BlockChain class (`chain.h`)
+- the txn_table is the pool of all the active txns that are on the node
+    - get_transaction_manager creates a new one if not already present
+
+- append_entries behavior changes depending on if leader or worker
+
+- in worker_append_entries:
+	- first check commit index and commit/execute and outstanding transactions
+
+
+worker node:
+txn table - pool of all active transaction managers on the node
+    each txn manager handles a single transaction. it also sends the pbft messages in the msg queue
+    how does it copy the txn data and send it?
+
+12/5
+- using process_client_batch to respond to client requests
+- want to use `create_and_send_batchreq` from `worker_thread.cpp` to invoke the `append_entries` rpc by editing `algorithm_specific_update` to include the necessary parameters to invoke function call.
+- need to define some global variables for the node's state, currentTerm, (confirm that local_view represents the current leader), find a way to get commitIndex from the local blockchain, and the lastApplied.
+- need to add the term variable to the blocks on the blockchain
+- the commit index represents the true end of the blockchain, anthing after may not stay on the chain
+
+12/6
+- I think these are the state variables:
+    - currentTerm (new)
+    - local_view[]                  votedFor (current leader/primary)
+    - (?) g_last_stable_chkpt       commitIndex (unless g_next_index is 0, need to handle that)
+    - (?) g_next_index - 1          lastApplied
+
+    - nextIndex[]
+    - matchIndex[]
+
+
+- local_view in global.cpp keeps track of the current view of each thread. why?
+- commitIndex is g_next_index in global.cpp
+- worker threads assume they themselves are the primary if VIEW_CHANGE is not invoked and will act as such if they receive a client request?
+- I need to add the append_entries rpc arguments to the BatchRequests message subclass, since that's what will be getting sent to a node (with a list of YSBCQueryMessage? objects)
+
+- leaderCommit is leader commit index comes from curr_next_index
+- entries[] is the YSBCQueryMessage
+    - wait, this can't work, entries might need to have previous batches in it if a node needs updating...
+
+- I do need to create an append_entries_rpc message subclass after all? i need to figure out how transactions are stored on the blockchain so they can be forwarded to nodes that are behind primary if necessary. ugh.
+
+#### Changelog
+
+`global`:
+- (12/6) added currentTerm and helper functions
+
+`messages`:
+- (12/5) ~~add the AppendEntriesRPC message subclass~~
+- (12/5) ~~add AppendEntriesResponse~~ 
+
+`worker_thread`:
+- (12/4) added macros to toggle pbft and raft
+
+`worker_thread_pbft`:
+- (12/4) moved all pbft functions here, added macros to toggle if pbft
+
+`worker_thread_raft`:
+- (12/4) created to replace `worker_thread_pbft` when RAFT invoked. currently a copy of `worker_thread_pbft`
 
 ### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
 Everything we need is probably in `system` and `client` folders

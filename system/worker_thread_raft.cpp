@@ -15,7 +15,54 @@
 #include "timer.h"
 #include "chain.h"
 
-#if CONSENSUS == PBFT
+#if CONSENSUS == RAFT
+
+// /**
+//  * Process the incoming client batch and invoke append_entries RPC
+//  *
+//  * this function should assume that a client sends a batch of transactions 
+//  * for each transaction in the batch. it is largely the same as pbft pre-prepare
+//  * with the main difference being what is sent/invoked
+//  */
+// RC WorkerThread::append_entries(Message *msg) {
+
+//     ClientQueryBatch *clbtch = (ClientQueryBatch *)msg;
+
+//     // Authenticate the client signature
+//     validate_msg(clbtch);
+
+// #if VIEW_CHANGES
+//     // If message forwarded to non-primary
+//     if (g_node_id != get_current_view(get_thd_id())) {
+        
+//         // this function does the forwarding
+//         client_query_check(clbtch);
+//         return RCOK;
+//     }
+
+//     // Partial failure of Primary 0.
+//     // fail_primary(msg, 9);
+// #endif
+
+//     // initialize transaction managers and send append entries message
+    
+// }
+
+// /**
+//  * Process the incoming AppendEntriesRPC
+//  *
+//  * this Function should do the following:
+//  * - reply false to leader/primary if term < currentTerm
+//  * - reply false if local log has no entry at prevLogIndex whose term matches prevLogTerm
+//  * - if existing entry conflicts with new entry, (same index different terms),
+//  *      delete existing entry and all following entries
+//  * 
+//  */
+// RC WorkerThread::process_append_entries(Message *msg) {
+
+//     AppendEntriesRPC *ae_rpc = (AppendEntriesRPC *)msg;
+    
+// }
 
 /**
  * Processes an incoming client batch and sends a Pre-prepare message to al replicas.

@@ -229,6 +229,65 @@ public:
     bool validate();
 };
 
+/**********************************/
+/*********** RAFT STUFF ***********/
+/**********************************/
+
+
+// might be able to piggyback off of existing stuff, going to try that first
+
+// #if CONSENSUS == RAFT
+// /*
+//  * A Message subclass to invoke append_entries on the worker nodes
+//  */
+// class AppendEntriesRPC : public Message
+// {
+// public:
+//     uint64_t get_size();
+//     void copy_from_buf(char *buf);
+//     void copy_to_buf(char *buf);
+//     void copy_to_txn(TxnManager *txn);
+//     void copy_from_txn(TxnManager *txn);
+//     void init();
+//     void release();
+
+//     // for protocol
+//     uint64_t term;
+//     uint64_t leaderId;
+//     uint64_t prevLogIndex;
+//     uint64_t prevLogTerm;
+//     std::vector<TxnManager> entries; // may need to change this
+//     uint64_t leaderCommit;
+
+//     // for communication
+//     uint64_t return_node;
+// }
+
+// /*
+//  * A Message subclass to send append_entries response to leader
+//  */
+// class AppendEntriesResponse : public Message
+// {
+// public:
+//     uint64_t get_size();
+//     void copy_from_buf(char *buf);
+//     void copy_to_buf(char *buf);
+//     void copy_to_txn(TxnManager *txn);
+//     void copy_from_txn(TxnManager *txn);
+//     void init();
+//     void release();
+
+//     // for protocol
+//     uint64_t term;
+//     bool success;
+// }
+
+// #endif
+
+/**********************************/
+/**********************************/
+/**********************************/
+
 #if CLIENT_BATCH
 class ClientQueryBatch : public Message
 {
@@ -247,6 +306,7 @@ public:
 
     uint64_t return_node;
     uint64_t batch_size;
+
 #if BANKING_SMART_CONTRACT
     Array<BankingSmartContractMessage *> cqrySet;
 #else
@@ -307,6 +367,17 @@ public:
     string getString(uint64_t sender);
 
     uint64_t view; // primary node id
+
+/********** RAFT ADDITION **********/
+#if CONSENSUS == RAFT
+    // fields needed to invoke raft append_entries RPC
+    uint64_t term;
+    // uint64_t leaderId; // this is the same as view
+    uint64_t prevLogIndex;
+    uint64_t prevLogTerm;
+    uint64_t leaderCommit;
+#endif
+/***********************************/
 
     Array<uint64_t> index;
 #if BANKING_SMART_CONTRACT

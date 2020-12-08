@@ -84,6 +84,7 @@ void WorkerThread::setup()
     _thd_txn_id = 0;
 }
 
+// processes incoming messages based on message type
 void WorkerThread::process(Message *msg)
 {
     RC rc __attribute__((unused));
@@ -93,15 +94,31 @@ void WorkerThread::process(Message *msg)
     case KEYEX:
         rc = process_key_exchange(msg);
         break;
-    case CL_BATCH: 
+#if CONSENSUS == RAFT
+    // case RAFT_AE_RPC: // process incoming append entries RPC
+    //     rc = process_apnd_entry(msg);
+    //     break;
+    // case RAFT_AE_RESP: // (leader-only) process append entries RPC response
+    //     rc = process_apnd_entry_resp(msg);
+    //     break;
+#endif
+#if CONSENSUS == PBFT
+    case CL_BATCH: // primary send preprepare
         rc = process_client_batch(msg);
         break;
-    case BATCH_REQ: // preprepare?, when node runs when it receives preprepare message, try to send n^2 prepare
+    case BATCH_REQ: // send prepare
         rc = process_batch(msg);
         break;
-    case PBFT_CHKPT_MSG:
+    case PBFT_PREP_MSG: // process prepare, send commit
+        rc = process_pbft_prep_msg(msg);
+        break;
+    case PBFT_CHKPT_MSG: // during commit
         rc = process_pbft_chkpt_msg(msg);
         break;
+    case PBFT_COMMIT_MSG: // process commit
+        rc = process_pbft_commit_msg(msg);
+        break;
+#endif
     case EXECUTE_MSG:
         rc = process_execute_msg(msg);
         break;
@@ -113,12 +130,6 @@ void WorkerThread::process(Message *msg)
         rc = process_new_view_msg(msg);
         break;
 #endif
-    case PBFT_PREP_MSG:
-        rc = process_pbft_prep_msg(msg);
-        break;
-    case PBFT_COMMIT_MSG:
-        rc = process_pbft_commit_msg(msg);
-        break;
     default:
         printf("Msg: %d\n", msg->get_rtype());
         fflush(stdout);
@@ -1111,6 +1122,10 @@ bool WorkerThread::exception_msg_handling(Message *msg)
 void WorkerThread::algorithm_specific_update(Message *msg, uint64_t idx)
 {
     // Can update any field, if required for a different consensus protocol.
+#if CONSENSUS == RAFT
+    // if i need the transaction manager:
+    
+#endif
 }
 
 /**
@@ -1367,52 +1382,3 @@ bool WorkerThread::checkMsg(Message *msg)
     return false;
 }
 
-/**
- * Checks if the incoming PBFTPrepMessage can be accepted.
- *
- * This functions checks if the hash and view of the commit message matches that of 
- * the Pre-Prepare message. Once 2f messages are received it returns a true and 
- * sets the `is_prepared` flag for furtue identification.
- *
- * @param msg PBFTPrepMessage.
- * @return bool True if the transactions of this batch are prepared.
- */
-bool WorkerThread::prepared(PBFTPrepMessage *msg)
-{
-    //cout << "Inside PREPARED: " << txn_man->get_txn_id() << "\n";
-    //fflush(stdout);
-
-    // Once prepared is set, no processing for further messages.
-    if (txn_man->is_prepared())
-    {
-        return false;
-    }
-
-    // If BatchRequests messages has not arrived yet, then return false.
-    if (txn_man->get_hash().empty())
-    {
-        // Store the message.
-        txn_man->info_prepare.push_back(msg->return_node);
-        return false;
-    }
-    else
-    {
-        if (!checkMsg(msg))
-        {
-            // If message did not match.
-            cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            cout << get_current_view(get_thd_id()) << " :: " << msg->view << "\n";
-            fflush(stdout);
-            return false;
-        }
-    }
-
-    uint64_t prep_cnt = txn_man->decr_prep_rsp_cnt();
-    if (prep_cnt == 0)
-    {
-        txn_man->set_prepared();
-        return true;
-    }
-
-    return false;
-}

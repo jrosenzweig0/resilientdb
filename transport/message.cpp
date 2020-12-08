@@ -148,6 +148,14 @@ Message *Message::create_message(RemReqType rtype)
 		msg = new PBFTCommitMessage;
 		break;
 
+	// Added for Raft
+	// case RAFT_AE_RPC:
+	// 	msg = new AppendEntriesRPC;
+	// 	break;
+	// case RAFT_AE_RESP:
+	// 	msg = new AppendEntriesResponse;
+	// 	break;
+
 	default:
 		cout << "FALSE TYPE: " << rtype << "\n";
 		fflush(stdout);
@@ -1195,6 +1203,39 @@ void KeyExchange::copy_to_buf(char *buf)
 	}
 	COPY_BUF(buf, return_node, ptr);
 }
+
+/**********************************/
+/************** RAFT **************/
+/**********************************/
+
+// #if CONSENSUS == RAFT
+
+// uint64_t AppendEntriesRPC::get_size() 
+// {
+// 	uint64_t size = Message::mget_size();
+
+// 	size += sizeof(term);
+// 	size += sizeof(leaderId);
+// 	size += sizeof(prevLogIndex);
+// 	size += sizeof(prevLogTerm);
+	
+
+// 	return size;
+// }
+
+// void AppenEntriesRPC::copy_from_buf(char *buf) 
+// {
+// 	Message::mcopy_from_buf(buf);
+
+// 	uint64_t ptr = Message::mget_size();
+// 	COPY_VAL()
+// }
+
+// #endif
+
+/**********************************/
+/**********************************/
+/**********************************/
 
 #if CLIENT_BATCH
 

@@ -206,6 +206,8 @@ enum RemReqType
     PBFT_COMMIT_MSG, // Commit
     PBFT_CHKPT_MSG   // Checkpoint and Garbage Collection
 
+    // RAFT_AE_RPC,        // append entries rpc
+    // RAFT_AE_RESP        // append entries response
 };
 
 /* Thread */
@@ -305,6 +307,15 @@ extern uint64_t g_min_invalid_nodes;
 
 // Funtion to calculate hash of a string.
 string calculateHash(string str);
+
+/********** RAFT ADDITIONS **********/
+
+extern uint64_t currentTerm;
+extern std::mutex cTermMTX;
+void inc_currentTerm();
+uint64_t get_currentTerm();
+
+/************************************/
 
 // Entities for maintaining g_next_index.
 extern uint64_t g_next_index; //index of the next txn to be executed

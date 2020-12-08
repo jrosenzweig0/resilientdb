@@ -448,6 +448,7 @@ void TxnManager::send_pbft_prep_msgs()
     }
 #endif
 
+    // constructs the list of nodes that the message needs to be forwarded to
     vector<string> emptyvec;
     vector<uint64_t> dest;
     for (uint64_t i = 0; i < g_node_cnt; i++)
@@ -459,6 +460,7 @@ void TxnManager::send_pbft_prep_msgs()
         dest.push_back(i);
     }
 
+    // this is how messages get sent?
     msg_queue.enqueue(get_thd_id(), pmsg, emptyvec, dest);
     dest.clear();
 }
