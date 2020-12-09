@@ -33,17 +33,17 @@ txn table - pool of all active transaction managers on the node
     each txn manager handles a single transaction. it also sends the pbft messages in the msg queue
     how does it copy the txn data and send it?
 
-12/5
+**12/5**
 - using process_client_batch to respond to client requests
 - want to use `create_and_send_batchreq` from `worker_thread.cpp` to invoke the `append_entries` rpc by editing `algorithm_specific_update` to include the necessary parameters to invoke function call.
 - need to define some global variables for the node's state, currentTerm, (confirm that local_view represents the current leader), find a way to get commitIndex from the local blockchain, and the lastApplied.
 - need to add the term variable to the blocks on the blockchain
 - the commit index represents the true end of the blockchain, anthing after may not stay on the chain
 
-12/6
+**12/6**
 - I think these are the state variables:
     - currentTerm (new)
-    - local_view[]                  votedFor (current leader/primary)
+    - local_view[]                  votedFor (current leader/primary) (dunno why it's an array)
     - (?) g_last_stable_chkpt       commitIndex (unless g_next_index is 0, need to handle that)
     - (?) g_next_index - 1          lastApplied
 
@@ -62,10 +62,30 @@ txn table - pool of all active transaction managers on the node
 
 - I do need to create an append_entries_rpc message subclass after all? i need to figure out how transactions are stored on the blockchain so they can be forwarded to nodes that are behind primary if necessary. ugh.
 
+**12/8**
+- blockchain stored batchrequests on each block
+- let's treat the batchrequest as the transaction itself
+
+- **!!! is the blockchain the same as the log or the state machine!! i think it's actually the state machine...**
+
+- todo:
+    - add term variable to blockchain
+    - rewrite process_client_batch, instead of immediately sending, it should append the batchrequest to a log without execution that will get forwarded during next heartbeat
+    - write append entries, sends multiple batches at a time
+    - modify create_and_send_batch to create TxnManagers without sending
+    - modify process_client_batch to process batches without sending prepare message but only responding to primary
+
 #### Changelog
 
 `global`:
 - (12/6) added currentTerm and helper functions
+- (12/8) added commitIndex and helper functions
+- (12/8) added lastApplied and helper functions
+- (12/8) added nextIndex[] and helper functions
+- (12/8) added matchIndex[] and helper functions
+
+`chain`
+- (12/8) added additional helper functions for accessing the blockchain log
 
 `messages`:
 - (12/5) ~~add the AppendEntriesRPC message subclass~~

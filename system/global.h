@@ -308,20 +308,44 @@ extern uint64_t g_min_invalid_nodes;
 // Funtion to calculate hash of a string.
 string calculateHash(string str);
 
-/********** RAFT ADDITIONS **********/
-
-extern uint64_t currentTerm;
-extern std::mutex cTermMTX;
-void inc_currentTerm();
-uint64_t get_currentTerm();
-
-/************************************/
-
 // Entities for maintaining g_next_index.
 extern uint64_t g_next_index; //index of the next txn to be executed
 extern std::mutex gnextMTX;
 void inc_next_index();
 uint64_t curr_next_index();
+
+/********** RAFT ADDITIONS **********/
+
+// Persistent State
+extern uint64_t currentTerm;
+extern std::mutex cTermMTX;
+void inc_currentTerm();
+uint64_t get_currentTerm();
+
+// Volatile State 
+extern uint64_t commitIndex;
+extern std::mutex commitIndMTX;
+void inc_commitIndex();
+uint64_t get_commitIndex();
+
+extern uint64_t lastApplied;
+extern std::mutex lastAppMTX;
+void inc_lastApplied();
+uint64_t get_lastApplied();
+
+// Volatile State on Primary
+extern uint64_t nextIndex[NODE_CNT];
+extern std::mutex nextIndMTX;
+void inc_node_nextIndex(uint64_t node);
+uint64_t get_node_nextIndex(uint64_t node);
+void init_nextIndex_arr();
+
+extern uint64_t matchIndex[NODE_CNT];
+extern std::mutex matchIndMTX;
+void inc_node_matchIndex(uint64_t node);
+uint64_t get_node_matchIndex(uint64_t node);
+
+/************************************/
 
 // Entities for handling checkpoints.
 extern uint32_t g_last_stable_chkpt; //index of the last stable checkpoint

@@ -162,9 +162,34 @@ string calculateHash(string str)
 	return std::string((char *)aDigest, CryptoPP::SHA256::DIGESTSIZE);
 }
 
+// Entities for maintaining g_next_index.
+uint64_t g_next_index = 0; //index of the next txn to be executed
+std::mutex gnextMTX;
+void inc_next_index()
+{
+	gnextMTX.lock();
+	g_next_index++;
+	gnextMTX.unlock();
+	inc_node_nextIndex(g_node_id);
+}
+
+uint64_t curr_next_index()
+{
+	uint64_t cval;
+	gnextMTX.lock();
+	cval = g_next_index;
+	gnextMTX.unlock();
+	return cval;
+}
+
 /********** RAFT ADDITIONS **********/
 
-// Entities for maintaining currentTerm
+/********* Persistent State *********/
+
+/* 
+ * currentTerm
+ * latest term server has seen (initialized to 0 on boot, increases monotonically)
+ */
 uint64_t currentTerm = 0; // current term of the protocol (== # of leader changes)
 std::mutex cTermMTX;
 void inc_currentTerm() {
@@ -181,26 +206,126 @@ uint64_t get_currentTerm() {
 	return cval;
 }
 
+/********** Volatile State **********/
+
+/*
+ * commitIndex
+ * index of highest log entry known to be committed locally
+ * (initialized to 0, increases monotonically)
+ */
+uint64_t commitIndex = 0;
+std::mutex commitIndMTX;
+
+/* Increments index of highest log entry known to be committed */
+void inc_commitIndex() {
+	commitIndMTX.lock();
+	commitIndex++;
+	commitIndMTX.unlock();
+}
+
+/* Get index of highest log entry known to be committed */
+uint64_t get_commitIndex() {
+	uint64_t val;
+	commitIndMTX.lock();
+	val = commitIndex;
+	commitIndMTX.unlock();
+	return val;
+}
+
+/*
+ * lastApplied
+ * index of highest log entry applied to state machine
+ * (initialized to 0, increases monotonically)
+ */
+uint64_t lastApplied = 0;
+std::mutex lastAppMTX;
+
+/* Increments index of highest log entry applied to state machine*/
+void inc_lastApplied() {
+	lastAppMTX.lock();
+	lastApplied++;
+	lastAppMTX.unlock();
+}
+
+/* Get index of highest log entry applied to state machine */
+uint64_t get_lastApplied() {
+	uint64_t val;
+	lastAppMTX.lock();
+	val = lastApplied;
+	lastAppMTX.unlock();
+	return val;
+}
+
+/***** Volatile State on Primary *****/
+//  (reinitialize after election)
+
+/* 
+ * nextIndex
+ * for each server, index of the next log entry to send to that server 
+ * (initialized to leader last log index + 1)
+ */
+uint64_t nextIndex[NODE_CNT] = {0};
+std::mutex nextIndMTX;
+
+/* Increments the index of the next log entry to send to node */
+void inc_node_nextIndex(uint64_t node) {
+	if (node < g_node_cnt) {
+		nextIndMTX.lock();
+		nextIndex[node]++;
+		nextIndMTX.unlock();
+	}
+}
+
+/* Gets the index of the next log entry to send to node 
+	Returns UINT64_MAX if node invalid */
+uint64_t get_node_nextIndex(uint64_t node) {
+	uint64_t val = UINT64_MAX;
+	if (node < g_node_cnt) {
+		nextIndex.lock();
+		val = nextIndex[node];
+		nextIndex.unlock();
+	}
+	return val;
+}
+
+/* Initializes the nextIndex array leader's last log index + 1 */
+void init_nextIndex_arr() {
+	nextIndMTX.lock();
+	for (uint64_t i = 0; i < g_node_cnt; i++) {
+		nextIndex[i] = g_next_index;
+	}
+	
+}
+
+/*
+ * matchIndex
+ * for each server, index of highest log entry known to be replicated on server
+ * (initialized to 0, increases monotonically)
+ */
+uint64_t matchIndex[NODE_CNT] = {0};
+std::mutex matchIndMTX;
+
+/* Increments index of highest known log entry on node */
+void inc_node_matchIndex(uint64_t node) {
+	if (node < g_node_cnt) {
+		matchIndMTX.lock();
+		matchIndex[node]++;
+		matchIndMTX.unlock();
+	}
+}
+
+/* Gets the index of highest known log entry on node */
+uint64_t get_node_matchIndex(uint64_t node) {
+	uint64_t val = UINT64_MAX;
+	if (node < g_node_cnt) {
+		matchIndMTX.lock();
+		val = matchIndex[node];
+		matchIndMTX.unlock();
+	}
+	return val;
+}
+
 /************************************/
-
-// Entities for maintaining g_next_index.
-uint64_t g_next_index = 0; //index of the next txn to be executed
-std::mutex gnextMTX;
-void inc_next_index()
-{
-	gnextMTX.lock();
-	g_next_index++;
-	gnextMTX.unlock();
-}
-
-uint64_t curr_next_index()
-{
-	uint64_t cval;
-	gnextMTX.lock();
-	cval = g_next_index;
-	gnextMTX.unlock();
-	return cval;
-}
 
 // Entities for handling checkpoints.
 uint32_t g_last_stable_chkpt = 0; //index of the last stable checkpoint

@@ -20,6 +20,12 @@ public:
 	void add_batch(BatchRequests *bmsg);
 	void add_commit_proof(Message *proof);
 	void release_data();
+
+#if CONSENSUS == RAFT
+
+	BatchRequests *get_batch_request();
+
+#endif
 };
 
 
@@ -31,6 +37,14 @@ class BChain
 public:
 	void add_block(TxnManager *txn);
 	void remove_block(uint64_t tid);
+
+#if CONSENSUS == RAFT
+
+	void remove_last();
+	BatchRequests *get_batch_at_index(uint64_t i);
+	std::vector<BatchRequests *> get_batches_since_index(uint64_t start);
+
+#endif
 
 };	
 

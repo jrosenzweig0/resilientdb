@@ -1,5 +1,9 @@
 #include "chain.h"
 
+/****************************************/
+/************* BChainStruct *************/
+/****************************************/
+
 /* Set the identifier for the block. */
 void BChainStruct::set_txn_id(uint64_t tid)
 {
@@ -41,7 +45,22 @@ void BChainStruct::release_data() {
 	}	
 }
 
+/************* RAFT ADDITIONS *************/
 
+#if CONSENSUS == RAFT
+
+/* Get the batch request from this block */
+BatchRequests *BChainStruct::get_batch_request() 
+{
+	char *buf = create_msg_buffer(batch_info);
+	Message *deepMsg = deep_copy_msg(buf, batch_info);
+	return (BatchRequests *) deepMsg; // !!! this might not work !!!
+}
+
+#endif
+
+/****************************************/
+/**************** BChain ****************/
 /****************************************/
 
 /* Add a block to the chain. */
@@ -85,6 +104,73 @@ void BChain::remove_block(uint64_t tid)
 		mem_allocator.free(blk, sizeof(BChainStruct));
 	}	
 }
+
+/************* RAFT ADDITIONS *************/
+
+// Some blockchain functions that will be helpful for the raft implementation
+#if CONSENSUS == RAFT
+
+/* Removes the last block currently on the blockchain */
+void BChain::remove_last() {
+	BChainStruct *blk;
+	bool found = false;
+
+	chainLock.lock();
+	if (bchain_map.size() > 0) 
+	{
+		found = true;
+		blk = bchain_map.back();
+		bchain_map.pop_back();
+	}
+	chainLock.unlock();
+
+	if (found) {
+		blk->release_data();
+		mem_allocator.free(blk, sizeof(BChainStruct));
+	}
+}
+
+/* Gets the batchrequest stored on the i-th block of the blockchain */
+BatchRequests *get_batch_at_index(uint64_t i) {
+	BatchRequests *breq;
+	bool found = false;
+
+	chainLock.lock();
+	if (i < bchain_map.size()) {
+		breq = bchain_map[i].get_batch_request();
+		found = true;
+	}
+	chainLock.unlock();
+
+	if (found) {
+		return breq;
+	} else {
+		return (BatchRequests *) NULL;
+	}
+}
+
+/* Gets all the blocks since the given index until the end of the blockchain 
+	and returns a vector of the batchrequests stored in them 
+	(used by primary to forward committed transactions to workers) */
+std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
+	std::vector<BatchRequests *> batches;
+	bool success = false;
+
+	chainLock.lock();
+	if (start < bchain_map.size()) 
+	{
+		for (uint64_t i = start; i < bchain_map.size(); i++)
+		{
+			batches.push_back(bchain_map[i].get_batch_request());
+		}
+		success = true;
+	}
+	chainLock.unlock();
+
+	return batches;
+}
+
+#endif
 
 /*****************************************/
 
