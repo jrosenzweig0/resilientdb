@@ -66,7 +66,7 @@ txn table - pool of all active transaction managers on the node
 - blockchain stored batchrequests on each block
 - let's treat the batchrequest as the transaction itself
 
-- **!!! is the blockchain the same as the log or the state machine!! i think it's actually the state machine...**
+- ~~**!!! is the blockchain the same as the log or the state machine!! i think it's actually the state machine...**~~ It's the same thing. the state machine is the whole system...
 
 - todo:
     - add term variable to blockchain
@@ -74,6 +74,18 @@ txn table - pool of all active transaction managers on the node
     - write append entries, sends multiple batches at a time
     - modify create_and_send_batch to create TxnManagers without sending
     - modify process_client_batch to process batches without sending prepare message but only responding to primary
+
+**12/9**
+- updating batchrequests message subclass to be used with Raft (term variable)
+    - need to update all helper functions
+
+- todo:
+    - finish writing AppendEntriesRPC message subclass
+    - write AppendEntriesResp message subclass
+    - write append_entries
+    - write process_append_entries
+    - write process_append_entries_resp
+
 
 #### Changelog
 
@@ -86,10 +98,12 @@ txn table - pool of all active transaction managers on the node
 
 `chain`
 - (12/8) added additional helper functions for accessing the blockchain log
+- (12/9) added term and helper functions for it
 
 `messages`:
 - (12/5) ~~add the AppendEntriesRPC message subclass~~
 - (12/5) ~~add AppendEntriesResponse~~ 
+- (12/9) added AppendEntriesRPC message subclass, started helper functions
 
 `worker_thread`:
 - (12/4) added macros to toggle pbft and raft

@@ -135,6 +135,11 @@ public:
     BatchRequests *batchreq;
     void set_primarybatch(BatchRequests *breq);
 
+// #if CONSENSUS == RAFT
+//     uint64_t term;
+//     uint64_t get_term();
+// #endif
+
     vector<string> allsign;
 
     uint64_t get_abort_cnt() { return abort_cnt; }

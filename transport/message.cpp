@@ -1208,30 +1208,86 @@ void KeyExchange::copy_to_buf(char *buf)
 /************** RAFT **************/
 /**********************************/
 
-// #if CONSENSUS == RAFT
+#if CONSENSUS == RAFT
 
-// uint64_t AppendEntriesRPC::get_size() 
-// {
-// 	uint64_t size = Message::mget_size();
+uint64_t AppendEntriesRPC::get_size() 
+{
+	uint64_t size = Message::mget_size();
 
-// 	size += sizeof(term);
-// 	size += sizeof(leaderId);
-// 	size += sizeof(prevLogIndex);
-// 	size += sizeof(prevLogTerm);
+	size += sizeof(term);
+	size += sizeof(leaderId);
+	size += sizeof(prevLogIndex);
+	size += sizeof(prevLogTerm);
+	size += sizeof(numEntries);
 	
+	for (uint i = 0; i < entries.size(); i++) {
+		size += entries[i]->get_size();
+	}
 
-// 	return size;
-// }
+	size += sizeof(leaderCommit);
 
-// void AppenEntriesRPC::copy_from_buf(char *buf) 
-// {
-// 	Message::mcopy_from_buf(buf);
+	return size;
+}
 
-// 	uint64_t ptr = Message::mget_size();
-// 	COPY_VAL()
-// }
+void AppendEntriesRPC::copy_from_buf(char *buf) 
+{
+	Message::mcopy_from_buf(buf);
 
-// #endif
+	uint64_t ptr = Message::mget_size();
+	COPY_VAL(term, buf, ptr);
+	COPY_VAL(leaderId, buf, ptr);
+	COPY_VAL(prevLogIndex, buf, ptr);
+	COPY_VAL(prevLogTerm, buf, ptr);
+	COPY_VAL(numEntries, buf, ptr);
+
+	for (uint i = 0; i < numEntries; i++) {
+		entries[i]->copy_from_buf(&buf[ptr]);
+		ptr += entries[i]->get_size();
+	}
+
+	COPY_VAL(leaderCommit, buf, ptr);
+
+	assert(ptr == get_size());
+}
+
+void AppendEntriesRPC::copy_to_buf(char *buf) 
+{
+	Message::mcopy_to_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+	COPY_BUF(buf, term, ptr);
+	COPY_BUF(buf, leaderId, ptr);
+	COPY_BUF(buf, prevLogIndex, ptr);
+	COPY_BUF(buf, prevLogTerm, ptr);
+	COPY_BUF(buf, numEntries, ptr);
+
+	for (uint i = 0; i < numEntries; i++) {
+		entries[i]->copy_to_buf(&buf[ptr]);
+		ptr += entries[i]->get_size();
+	}
+
+	COPY_BUF(buf, leaderCommit, ptr);
+
+	assert(ptr == get_size())
+}
+
+void AppendEntriesRPC::copy_to_txn(TxnManager *txn) {
+
+}
+
+void AppendEntriesRPC::copy_from_txn(TxnManager *txn) {
+
+}
+
+void init() {
+	assert(get_current_view(thd_id) == g_node_id);
+	this->term = get_currentTerm();
+
+	this->leaderId = g_node_id;
+	this->leaderCommit = get_commitIndex();
+}
+
+#endif
 
 /**********************************/
 /**********************************/
@@ -1378,6 +1434,11 @@ uint64_t BatchRequests::get_size()
 	size += sizeof(view);
 
 	size += sizeof(uint64_t) * index.size();
+
+#if CONSENSUS == RAFT
+	size += sizeof(uint64_t);
+#endif
+
 	size += sizeof(uint64_t);
 	size += hash.length();
 
@@ -1492,6 +1553,10 @@ void BatchRequests::copy_from_buf(char *buf)
 #endif
 	}
 
+#if CONSENSUS == RAFT
+	COPY_VAL(term, buf, ptr);
+#endif
+
 	COPY_VAL(hashSize, buf, ptr);
 	ptr = buf_to_string(buf, ptr, hash, hashSize);
 
@@ -1517,6 +1582,10 @@ void BatchRequests::copy_to_buf(char *buf)
 		requestMsg[i]->copy_to_buf(&buf[ptr]);
 		ptr += requestMsg[i]->get_size();
 	}
+
+#if CONSENSUS == RAFT
+	COPY_BUF(buf, term, ptr);
+#endif
 
 	COPY_BUF(buf, hashSize, ptr);
 

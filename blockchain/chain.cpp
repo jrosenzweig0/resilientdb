@@ -49,6 +49,18 @@ void BChainStruct::release_data() {
 
 #if CONSENSUS == RAFT
 
+/* set the term this block was committed */
+void set_term(uint64_t t) 
+{
+	term = t;
+}
+
+/* get the term this block was committed */
+uint64_t get_term()
+{
+	return term;
+}
+
 /* Get the batch request from this block */
 BatchRequests *BChainStruct::get_batch_request() 
 {
@@ -168,6 +180,17 @@ std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 	chainLock.unlock();
 
 	return batches;
+}
+
+/* Checks that the term of block i matches the given term t */
+bool BChain::check_term_match_at(uint64_t i, uint64_t t) {
+	bool ret;
+
+	chainLock.lock();
+	ret = (t == bchain_map[i].get_term());
+	chainLock.unlock();
+
+	return ret;
 }
 
 #endif
