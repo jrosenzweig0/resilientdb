@@ -61,7 +61,7 @@ uint64_t get_term()
 	return term;
 }
 
-/* Get the batch request from this block */
+/* Get the batch request from this block (returns a deep copy of the batch request) */
 BatchRequests *BChainStruct::get_batch_request() 
 {
 	char *buf = create_msg_buffer(batch_info);
@@ -142,14 +142,38 @@ void BChain::remove_last() {
 	}
 }
 
+/* Removes all blocks from index i to the end of the chain */
+void BChain::remove_since_index(uint64_t i) {
+	std::vector<BChainStruct *> blks;
+	bool found = false;
+
+	chainLock.lock();
+	if (bchain_map.size() > i) {
+		found = true;
+		for (uint64_t j = i; j < bchain_map.size(); j++) {
+			blks.push_back(bchain_map[i]);
+		}
+		bchain_map.erase(bchain_map.begin()+i, bchain_map.end());
+	}
+	chainLock.unlock();
+
+	if (found) {
+		for (uint64_t j = 0; j < blks.size(); j++) {
+			blks[i]->release_data();
+			mem_allocator.free(blks[i], sizeof(BChainStruct));
+		}
+	}
+	blks.clear()
+}
+
 /* Gets the batchrequest stored on the i-th block of the blockchain */
-BatchRequests *get_batch_at_index(uint64_t i) {
+BatchRequests *BChain::get_batch_at_index(uint64_t i) {
 	BatchRequests *breq;
 	bool found = false;
 
 	chainLock.lock();
 	if (i < bchain_map.size()) {
-		breq = bchain_map[i].get_batch_request();
+		breq = bchain_map[i]->get_batch_request();
 		found = true;
 	}
 	chainLock.unlock();
@@ -173,7 +197,7 @@ std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 	{
 		for (uint64_t i = start; i < bchain_map.size(); i++)
 		{
-			batches.push_back(bchain_map[i].get_batch_request());
+			batches.push_back(bchain_map[i]->get_batch_request());
 		}
 		success = true;
 	}
@@ -182,12 +206,35 @@ std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 	return batches;
 }
 
+/* Get the current length of the blockchain */
+uint64_t BChain::get_length() {
+	uint64_t val;
+	chainLock.lock();
+	val = bchain_map.size();
+	chainLock.unlock();
+	return val;
+}
+
+/* Gets term block i was committed, term cannot be 0 */
+uint64_t BChain::get_term_at(uint64_t i) {
+	uint64_t term = 0;
+	chainLock.lock();
+	if (i < bchain_map.size()) {
+		term = bchain_map[i]->get_term();
+	}
+	chainLock.unlock();
+
+	return term;
+}
+
 /* Checks that the term of block i matches the given term t */
 bool BChain::check_term_match_at(uint64_t i, uint64_t t) {
-	bool ret;
+	bool ret = false;
 
 	chainLock.lock();
-	ret = (t == bchain_map[i].get_term());
+	if (i < bchain_map.size()) {
+		ret = (t == bchain_map[i]->get_term());
+	}
 	chainLock.unlock();
 
 	return ret;

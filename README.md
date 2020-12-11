@@ -86,6 +86,9 @@ txn table - pool of all active transaction managers on the node
     - write process_append_entries
     - write process_append_entries_resp
 
+**12/10**
+- make sure that the batchrequests term field is initialized on client request
+
 
 #### Changelog
 
@@ -104,6 +107,7 @@ txn table - pool of all active transaction managers on the node
 - (12/5) ~~add the AppendEntriesRPC message subclass~~
 - (12/5) ~~add AppendEntriesResponse~~ 
 - (12/9) added AppendEntriesRPC message subclass, started helper functions
+- (12/10) continuing to fill out helper functions for AppendEntriesRPC
 
 `worker_thread`:
 - (12/4) added macros to toggle pbft and raft
@@ -113,6 +117,9 @@ txn table - pool of all active transaction managers on the node
 
 `worker_thread_raft`:
 - (12/4) created to replace `worker_thread_pbft` when RAFT invoked. currently a copy of `worker_thread_pbft`
+
+`msg_queue`: 
+- (12/10) updated msq_queue to send AppendEntriesRPCs
 
 ### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
 Everything we need is probably in `system` and `client` folders

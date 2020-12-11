@@ -35,8 +35,9 @@ public:
 
     /******* RAFT *******/
 
-    RC process_apnd_entry(Message *msg);        // worker_thread_raft
-    RC process_apnd_entry_resp(Message *msg);   // worker_thread_raft
+    RC append_entries();                            // worker_thread_raft
+    RC process_append_entries(Message *msg);        // worker_thread_raft
+    RC process_append_entries_resp(Message *msg);   // worker_thread_raft
 
     /********************/
 

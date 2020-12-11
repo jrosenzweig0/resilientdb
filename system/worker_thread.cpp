@@ -95,9 +95,9 @@ void WorkerThread::process(Message *msg)
         rc = process_key_exchange(msg);
         break;
 #if CONSENSUS == RAFT
-    // case RAFT_AE_RPC: // process incoming append entries RPC
-    //     rc = process_apnd_entry(msg);
-    //     break;
+    case RAFT_AE_RPC: // process incoming append entries RPC
+        rc = process_append_entries(msg);
+        break;
     // case RAFT_AE_RESP: // (leader-only) process append entries RPC response
     //     rc = process_apnd_entry_resp(msg);
     //     break;
@@ -1350,6 +1350,21 @@ bool WorkerThread::validate_msg(Message *msg)
         break;
 #endif
 
+#if CONSENSUS == RAFT
+    case RAFT_AE_RPC:
+        if (!((AppendEntriesRPC *)msg)->validate())
+        {
+            assert(0);
+        }
+        break;
+    case RAFT_AE_RESP:
+        if (!((AppendEntriesResponse *)msg)->validate())
+        {
+            assert(0);
+        }
+        break;
+#endif
+        
     default:
         break;
     }

@@ -251,6 +251,10 @@ public:
     void init();
     void release();
 
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate();
+    string getString(uint64_t sender);
+
     // for protocol
     uint64_t term;
     uint64_t leaderId;
@@ -261,24 +265,28 @@ public:
     uint64_t leaderCommit;
 }
 
-// /*
-//  * A Message subclass to send append_entries response to leader
-//  */
-// class AppendEntriesResponse : public Message
-// {
-// public:
-//     uint64_t get_size();
-//     void copy_from_buf(char *buf);
-//     void copy_to_buf(char *buf);
-//     void copy_to_txn(TxnManager *txn);
-//     void copy_from_txn(TxnManager *txn);
-//     void init();
-//     void release();
+/*
+ * A Message subclass to send append_entries response to leader
+ */
+class AppendEntriesResponse : public Message
+{
+public:
+    uint64_t get_size();
+    void copy_from_buf(char *buf);
+    void copy_to_buf(char *buf);
+    void copy_to_txn(TxnManager *txn);
+    void copy_from_txn(TxnManager *txn);
+    void init();
+    void release();
 
-//     // for protocol
-//     uint64_t term;
-//     bool success;
-// }
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate(uint64_t thd_id);
+    string getString(uint64_t sender);
+
+    // for protocol
+    uint64_t term;
+    bool success;
+}
 
 #endif
 

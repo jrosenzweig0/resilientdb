@@ -59,6 +59,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<string> &
         ((ClientQueryBatch *)msg)->sign(dest[0]);
         entry->allsign.push_back(ndsign[0]);
         break;
+    case RAFT_AE_RPC: // just sign it i guess?
     case BATCH_REQ:
         for (uint64_t i = 0; i < ndsign.size(); i++)
         {
@@ -118,6 +119,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<string> &
     case KEYEX:
     case CL_RSP:
     case CL_BATCH:
+    case RAFT_AE_RPC:
     {
         // Based on the destination (only 1), messages are placed in the queue.
         entry->starttime = get_sys_clock();

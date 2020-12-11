@@ -149,12 +149,14 @@ Message *Message::create_message(RemReqType rtype)
 		break;
 
 	// Added for Raft
-	// case RAFT_AE_RPC:
-	// 	msg = new AppendEntriesRPC;
-	// 	break;
-	// case RAFT_AE_RESP:
-	// 	msg = new AppendEntriesResponse;
-	// 	break;
+#if CONSENSUS == RAFT
+	case RAFT_AE_RPC:
+		msg = new AppendEntriesRPC;
+		break;
+	case RAFT_AE_RESP:
+		msg = new AppendEntriesResponse;
+		break;
+#endif
 
 	default:
 		cout << "FALSE TYPE: " << rtype << "\n";
@@ -401,7 +403,24 @@ void Message::release_message(Message *msg)
 		delete m_msg;
 		break;
 	}
-
+	// Added for Raft
+#if CONSENSUS == RAFT
+	case RAFT_AE_RPC:
+	{
+		AppendEntriesRPC *m_msg = (AppendEntriesRPC *)msg;
+		m_msg->release();
+		delete m_msg;
+		break;
+	}
+	case RAFT_AE_RESP:
+	{
+		AppendEntriesResponse *m_msg = (AppendEntriesResponse *)msg;
+		m_msg->release();
+		delete m_msg;
+		break;
+	}
+#endif
+	
 	default:
 	{
 		assert(false);
@@ -1279,12 +1298,137 @@ void AppendEntriesRPC::copy_from_txn(TxnManager *txn) {
 
 }
 
-void init() {
+void AppendEntriesRPC::init() {
 	assert(get_current_view(thd_id) == g_node_id);
 	this->term = get_currentTerm();
 
 	this->leaderId = g_node_id;
 	this->leaderCommit = get_commitIndex();
+}
+
+void AppendEntriesRPC::release() {
+	for (uint i = 0; i < numEntries; i++) {
+		entries[i]->release();
+	}
+	entries.release();
+}
+
+void AppendEntriesRPC::sign(uint64_t dest_node) {
+#if USE_CRYPTO
+	string message = getString(g_node_id);
+
+	signingNodeNode(message, this->signature, this->pubKey, dest_node);
+#else
+	this->signature = "0";
+#endif
+	this->sigSize = this->signature.size();
+	this->keySize = this->pubKey.size();
+}
+
+bool AppendEntriesRPC::validate() {
+#if USE_CRYPTO
+	string message = getString(this->return_node_id);
+
+	//cout << "Sign: " << this->signature << "\n";
+	//fflush(stdout);
+
+	//cout << "Pkey: " << this->pubKey << "\n";
+	//fflush(stdout);
+
+	if (!validateNodeNode(message, this->pubKey, this->signature, this->return_node_id))
+	{
+		assert(0);
+		return false;
+	}
+#endif
+	return true;
+}
+
+string getString(uint64_t sender) {
+	return std::to_string(sender);
+}
+
+/**********************************/
+
+uint64_t AppendEntriesResponse::get_size() {
+	uint64_t size = Message::mget_size();
+	size += sizeof(term);
+	size += sizeof(success);
+	return size;
+}
+
+void AppendEntriesResponse::copy_from_buf(char *buf) {
+	Message::mcopy_from_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+	COPY_VAL(term, buf, ptr);
+	COPY_VAL(success, buf, ptr);
+
+	assert(ptr == get_size());
+}
+
+void AppendEntriesResponse::copy_to_buf(char *buf) {
+	Message::mcopy_to_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+	COPY_BUF(buf, term, ptr);
+	COPY_BUF(buf, success, ptr);
+	assert(ptr == get_size());
+}
+
+void AppendEntriesResponse::copy_to_txn(TxnManager *txn) {
+	// shouldn't need to be using this
+}
+
+void AppendEntriesResponse::copy_to_txn(TxnManager *txn) {
+	// shouldn't need to be using this
+}
+
+void AppendEntriesResponse::init() {
+	// only followers should be sending an AppendEntriesResponse
+	assert(get_current_view(thd_id) != g_node_id);
+
+	this->term = get_currentTerm();
+	this->success = true;
+}
+
+void AppendEntriesResponse::release() {
+	// nothing to release
+}
+
+void AppendEntries::sign(uint64_t dest_node) {
+	#if USE_CRYPTO
+	string message = getString(g_node_id);
+
+	signingNodeNode(message, this->signature, this->pubKey, dest_node);
+#else
+	this->signature = "0";
+#endif
+	this->sigSize = this->signature.size();
+	this->keySize = this->pubKey.size();
+}
+
+bool AppendEntries::validate() {
+#if USE_CRYPTO
+	string message = getString(this->return_node_id);
+
+	//cout << "Sign: " << this->signature << "\n";
+	//fflush(stdout);
+
+	//cout << "Pkey: " << this->pubKey << "\n";
+	//fflush(stdout);
+
+	if (!validateNodeNode(message, this->pubKey, this->signature, this->return_node_id))
+	{
+		assert(0);
+		return false;
+	}
+#endif
+	return true;
+}
+
+string getString(uint64_t sender) {
+	return std::to_string(sender);
 }
 
 #endif

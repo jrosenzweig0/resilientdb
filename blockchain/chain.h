@@ -44,8 +44,11 @@ public:
 #if CONSENSUS == RAFT
 
 	void remove_last();
+	void remove_since_index(uint64_t i); // removes all blocks from index i to end
 	BatchRequests *get_batch_at_index(uint64_t i);
 	std::vector<BatchRequests *> get_batches_since_index(uint64_t start);
+	uint64_t get_length();
+	uint64_t get_term_at(uint64_t i);
 	bool check_term_match_at(uint64_t i, uint64_t t);
 
 #endif

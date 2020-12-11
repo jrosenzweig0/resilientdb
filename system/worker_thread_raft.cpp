@@ -24,45 +24,97 @@
  * for each transaction in the batch. it is largely the same as pbft pre-prepare
  * with the main difference being what is sent/invoked
  */
-RC WorkerThread::append_entries(Message *msg) {
+RC WorkerThread::append_entries() {
 
-    ClientQueryBatch *clbtch = (ClientQueryBatch *)msg;
+    // 
 
-    // Authenticate the client signature
-    validate_msg(clbtch);
+    // create the append entries rpc message for each node
+    // std::vector<AppendEntriesRPC *> aerpcs;
 
-#if VIEW_CHANGES
-    // If message forwarded to non-primary
-    if (g_node_id != get_current_view(get_thd_id())) {
-        
-        // this function does the forwarding
-        client_query_check(clbtch);
-        return RCOK;
+    for (uint i = 0; i < g_node_cnt; i++) {
+        // skip if this node
+        if (i != g_node_id) {
+            // construct AppendEntriesRPC
+            Message *aemsg = Message::create_message(RAFT_AE_RPC);
+            AppendEntriesRPC *aerpc = (AppendEntriesRPC *) aemsg;
+            aerpc->init();
+
+            aerpc->prevLogIndex = get_node_nextIndex(i) - 1;
+            aerpc->prevLogTerm = (BlockChain->get_term_at(aerpc->prevLogIndex));
+
+            // get list of BatchRequests from blockchain
+            aerpc->entries = get_batches_since_index(get_node_nextIndex(i));
+            aerpc->numEntries = aerpc->entries.size();
+
+            // sign and send AppendEntriesRPC to destination
+            vector<string> emptyvec;
+            aerpc->sign(i);
+
+            emptyvec.push_back(aerpc->signature);
+
+            vector<uint64_t> dest = nodes_to_send(i, i+1);
+            msg_queue.enqueue(get_thd_id(), aerpc, emptyvec, dest);
+            emptyvec.clear();
+            // aerpcs.push_back(aerpc);
+        }
     }
 
-    // Partial failure of Primary 0.
-    // fail_primary(msg, 9);
-#endif
+    return RCOK;
 
-    // initialize transaction managers and send append entries message
-    
 }
 
-// /**
-//  * Process the incoming AppendEntriesRPC
-//  *
-//  * this Function should do the following:
-//  * - reply false to leader/primary if term < currentTerm
-//  * - reply false if local log has no entry at prevLogIndex whose term matches prevLogTerm
-//  * - if existing entry conflicts with new entry, (same index different terms),
-//  *      delete existing entry and all following entries
-//  * 
-//  */
-// RC WorkerThread::process_append_entries(Message *msg) {
+/**
+ * Process the incoming AppendEntriesRPC
+ *
+ * this Function should do the following:
+ * - reply false to leader/primary if term < currentTerm
+ * - reply false if local log has no entry at prevLogIndex whose term matches prevLogTerm
+ * - if existing entry conflicts with new entry, (same index different terms),
+ *      delete existing entry and all following entries
+ * 
+ */
+RC WorkerThread::process_append_entries(Message *msg) {
 
-//     AppendEntriesRPC *ae_rpc = (AppendEntriesRPC *)msg;
+    // TODO: reset timer
+
+    AppendEntriesRPC *aerpc = (AppendEntriesRPC *)msg;
+
+    // only followers should be using this
+    assert(g_node_id != get_current_view(get_thd_id()));
+
+    // authenticate message
+    validate_msg(aerpc);
     
-// }
+    // construct response
+    Message *aer = Message::create_message(RAFT_AE_RESP);
+    aer->init();
+
+    // reply false if term < currentTerm
+    if (aerpc->term < currentTerm) {
+        aer->success = false;
+    }
+
+    // reply false if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
+    if (!BlockChain->check_term_match_at(aerpc->prevLogIndex, aerpc->prevLogTerm)) {
+        aer->success = false;
+    }
+
+    if (!BlockChain->check_term_match_at(aerpc->prevLogIndex + 1, aerpc->entries[0]->term)) {
+        BlockChain->remove_since_index(aerpc->prevLogIndex + 1);
+    }
+
+    // add all batch requests in entries to the blockchain (not committed)
+    for (uint64_t i = 0; i < aerpc->entries.size(); i++) {
+        // pointer to batch request
+        BatchRequests *breq = aerpc->entries[i];
+
+        // allocate transaction managers for all transactions in the batch i
+        set_txn_man_fields(breq, i);
+
+        // NOT DONE
+        // BlockChain->add_block(get_transaction_manager())
+    }
+}
 
 /**
  * Processes an incoming client batch and sends a Pre-prepare message to al replicas.
