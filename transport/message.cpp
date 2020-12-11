@@ -420,7 +420,7 @@ void Message::release_message(Message *msg)
 		break;
 	}
 #endif
-	
+
 	default:
 	{
 		assert(false);
@@ -1287,7 +1287,7 @@ void AppendEntriesRPC::copy_to_buf(char *buf)
 
 	COPY_BUF(buf, leaderCommit, ptr);
 
-	assert(ptr == get_size())
+	assert(ptr == get_size());
 }
 
 void AppendEntriesRPC::copy_to_txn(TxnManager *txn) {
@@ -1299,7 +1299,6 @@ void AppendEntriesRPC::copy_from_txn(TxnManager *txn) {
 }
 
 void AppendEntriesRPC::init() {
-	assert(get_current_view(thd_id) == g_node_id);
 	this->term = get_currentTerm();
 
 	this->leaderId = g_node_id;
@@ -1310,7 +1309,7 @@ void AppendEntriesRPC::release() {
 	for (uint i = 0; i < numEntries; i++) {
 		entries[i]->release();
 	}
-	entries.release();
+	entries.clear();
 }
 
 void AppendEntriesRPC::sign(uint64_t dest_node) {
@@ -1344,7 +1343,7 @@ bool AppendEntriesRPC::validate() {
 	return true;
 }
 
-string getString(uint64_t sender) {
+string AppendEntriesRPC::getString(uint64_t sender) {
 	return std::to_string(sender);
 }
 
@@ -1378,15 +1377,16 @@ void AppendEntriesResponse::copy_to_buf(char *buf) {
 
 void AppendEntriesResponse::copy_to_txn(TxnManager *txn) {
 	// shouldn't need to be using this
+	return;
 }
 
-void AppendEntriesResponse::copy_to_txn(TxnManager *txn) {
+void AppendEntriesResponse::copy_from_txn(TxnManager *txn) {
 	// shouldn't need to be using this
+	return;
 }
 
 void AppendEntriesResponse::init() {
 	// only followers should be sending an AppendEntriesResponse
-	assert(get_current_view(thd_id) != g_node_id);
 
 	this->term = get_currentTerm();
 	this->success = true;
@@ -1396,7 +1396,7 @@ void AppendEntriesResponse::release() {
 	// nothing to release
 }
 
-void AppendEntries::sign(uint64_t dest_node) {
+void AppendEntriesResponse::sign(uint64_t dest_node) {
 	#if USE_CRYPTO
 	string message = getString(g_node_id);
 
@@ -1408,7 +1408,7 @@ void AppendEntries::sign(uint64_t dest_node) {
 	this->keySize = this->pubKey.size();
 }
 
-bool AppendEntries::validate() {
+bool AppendEntriesResponse::validate() {
 #if USE_CRYPTO
 	string message = getString(this->return_node_id);
 
@@ -1427,7 +1427,7 @@ bool AppendEntries::validate() {
 	return true;
 }
 
-string getString(uint64_t sender) {
+string AppendEntriesResponse::getString(uint64_t sender) {
 	return std::to_string(sender);
 }
 

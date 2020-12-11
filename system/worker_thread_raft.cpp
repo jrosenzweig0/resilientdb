@@ -44,7 +44,7 @@ RC WorkerThread::append_entries() {
             aerpc->prevLogTerm = (BlockChain->get_term_at(aerpc->prevLogIndex));
 
             // get list of BatchRequests from blockchain
-            aerpc->entries = get_batches_since_index(get_node_nextIndex(i));
+            aerpc->entries = BlockChain->get_batches_since_index(get_node_nextIndex(i));
             aerpc->numEntries = aerpc->entries.size();
 
             // sign and send AppendEntriesRPC to destination
@@ -82,7 +82,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
     while (get_commitIndex() > get_lastApplied()) {
         inc_lastApplied();
         lA = get_lastApplied();
-        txn_man = get_transaction_manager(BlockChain->get_txn_id(lA), 0);
+        txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
         txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
         send_execute_msg();
     }
@@ -96,7 +96,8 @@ RC WorkerThread::process_append_entries(Message *msg) {
     validate_msg(aerpc);
     
     // construct response
-    Message *aer = Message::create_message(RAFT_AE_RESP);
+    Message *amsg = Message::create_message(RAFT_AE_RESP);
+    AppendEntriesResponse *aer = (AppendEntriesResponse *)amsg;
     aer->init();
 
     // reply false if term < currentTerm
@@ -131,8 +132,8 @@ RC WorkerThread::process_append_entries(Message *msg) {
         }
 
 
-        if (leaderCommit > get_commitIndex()) {
-            set_commitIndex(std::min(leaderCommit, BlockChain->get_length() - 1));
+        if (aerpc->leaderCommit > get_commitIndex()) {
+            set_commitIndex(std::min(aerpc->leaderCommit, BlockChain->get_length() - 1));
         }
     }
 
@@ -142,7 +143,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
 
     emptyvec.push_back(aer->signature);
 
-    vector<uint64_t> dest = nodes_to_send(leaderId, leaderId+1);
+    vector<uint64_t> dest = nodes_to_send(aerpc->leaderId, aerpc->leaderId+1);
     msg_queue.enqueue(get_thd_id(), aer, emptyvec, dest);
     emptyvec.clear();
 
@@ -192,7 +193,7 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
     while (get_commitIndex() > get_lastApplied()) {
         inc_lastApplied();
         lA = get_lastApplied();
-        txn_man = get_transaction_manager(BlockChain->get_txn_id(lA), 0);
+        txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
         txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
         send_execute_msg();
     }

@@ -229,71 +229,6 @@ public:
     bool validate();
 };
 
-/**********************************/
-/*********** RAFT STUFF ***********/
-/**********************************/
-
-
-// might be able to piggyback off of existing stuff, going to try that first
-
-#if CONSENSUS == RAFT
-/*
- * A Message subclass to invoke append_entries on the worker nodes
- */
-class AppendEntriesRPC : public Message
-{
-public:
-    uint64_t get_size();
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_to_txn(TxnManager *txn);
-    void copy_from_txn(TxnManager *txn);
-    void init();
-    void release();
-
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate();
-    string getString(uint64_t sender);
-
-    // for protocol
-    uint64_t term;
-    uint64_t leaderId;
-    uint64_t prevLogIndex;
-    uint64_t prevLogTerm;
-    uint64_t numEntries;
-    std::vector<BatchRequests *> entries; // may need to change this
-    uint64_t leaderCommit;
-}
-
-/*
- * A Message subclass to send append_entries response to leader
- */
-class AppendEntriesResponse : public Message
-{
-public:
-    uint64_t get_size();
-    void copy_from_buf(char *buf);
-    void copy_to_buf(char *buf);
-    void copy_to_txn(TxnManager *txn);
-    void copy_from_txn(TxnManager *txn);
-    void init();
-    void release();
-
-    void sign(uint64_t dest_node = UINT64_MAX);
-    bool validate(uint64_t thd_id);
-    string getString(uint64_t sender);
-
-    // for protocol
-    uint64_t term;
-    bool success;
-}
-
-#endif
-
-/**********************************/
-/**********************************/
-/**********************************/
-
 #if CLIENT_BATCH
 class ClientQueryBatch : public Message
 {
@@ -396,6 +331,71 @@ public:
     string hash;
     uint32_t batch_size;
 };
+
+/**********************************/
+/*********** RAFT STUFF ***********/
+/**********************************/
+
+
+// might be able to piggyback off of existing stuff, going to try that first
+
+#if CONSENSUS == RAFT
+/*
+ * A Message subclass to invoke append_entries on the worker nodes
+ */
+class AppendEntriesRPC : public Message
+{
+public:
+    uint64_t get_size();
+    void copy_from_buf(char *buf);
+    void copy_to_buf(char *buf);
+    void copy_to_txn(TxnManager *txn);
+    void copy_from_txn(TxnManager *txn);
+    void init();
+    void release();
+
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate();
+    string getString(uint64_t sender);
+
+    // for protocol
+    uint64_t term;
+    uint64_t leaderId;
+    uint64_t prevLogIndex;
+    uint64_t prevLogTerm;
+    uint64_t numEntries;
+    std::vector<BatchRequests *> entries; // may need to change this
+    uint64_t leaderCommit;
+};
+
+/*
+ * A Message subclass to send append_entries response to leader
+ */
+class AppendEntriesResponse : public Message
+{
+public:
+    uint64_t get_size();
+    void copy_from_buf(char *buf);
+    void copy_to_buf(char *buf);
+    void copy_to_txn(TxnManager *txn);
+    void copy_from_txn(TxnManager *txn);
+    void init();
+    void release();
+
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate();
+    string getString(uint64_t sender);
+
+    // for protocol
+    uint64_t term;
+    bool success;
+};
+
+#endif
+
+/**********************************/
+/**********************************/
+/**********************************/
 
 class ExecuteMessage : public Message
 {

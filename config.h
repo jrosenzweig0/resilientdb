@@ -149,11 +149,12 @@
 #define DONE_TIMER 2 * 60 * BILLION 
 #define WARMUP_TIMER 1 * 60 * BILLION 
 // Select the consensus algorithm to run.  
-#define CONSENSUS PBFT
+#define CONSENSUS RAFT
 #define DBFT 1 
 #define PBFT 2 
 #define ZYZZYVA 3 
 #define HOTSTUFF 4 
+#define RAFT 5
 // Switching on RBFT consensus. 
 // Status: Partial implementation, only for PBFT. 
 #define RBFT_ON false 

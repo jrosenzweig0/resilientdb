@@ -299,9 +299,9 @@ void decr_node_nextIndex(uint64_t node) {
 uint64_t get_node_nextIndex(uint64_t node) {
 	uint64_t val = UINT64_MAX;
 	if (node < g_node_cnt) {
-		nextIndex.lock();
+		nextIndMTX.lock();
 		val = nextIndex[node];
-		nextIndex.unlock();
+		nextIndMTX.unlock();
 	}
 	return val;
 }
@@ -311,7 +311,7 @@ void set_node_nextIndex(uint64_t node, uint64_t ind) {
 	if (node < g_node_cnt) {
 		nextIndMTX.lock();
 		if (nextIndex[node] < ind) {
-			nextIndex[node] == ind;
+			nextIndex[node] = ind;
 		}
 		nextIndMTX.unlock();
 	}
@@ -376,7 +376,7 @@ uint64_t get_median_matchIndex() {
 	if (g_node_cnt % 2 != 0) {
 		return arr[g_node_cnt / 2];
 	} else {
-		return (arr[(g_node_cnt-1)/2] + arr[(g_node_cnt+1)/2]) / 2
+		return (arr[(g_node_cnt-1)/2] + arr[(g_node_cnt+1)/2]) / 2;
 	}
 }
 

@@ -88,7 +88,7 @@ txn table - pool of all active transaction managers on the node
 
 **12/10**
 - make sure that the batchrequests term field is initialized on client request
-
+- docker 3.0.0 is [broken](https://github.com/docker/for-mac/issues/5115)
 
 #### Changelog
 
@@ -122,7 +122,7 @@ txn table - pool of all active transaction managers on the node
 - (12/11) most of append_entries, process_append_entries, and process_append_entries_response done. tweaked process_client_batch
 
 `msg_queue`: 
-- (12/10) updated msq_queue to send AppendEntriesRPCs
+- (12/10) updated msq_queue to send AppendEntriesRPCs and AppendEntriesResponse
 
 ### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
 Everything we need is probably in `system` and `client` folders

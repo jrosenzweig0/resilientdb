@@ -162,6 +162,7 @@ echo -e "#define DBFT 1 " >>config.h
 echo -e "#define PBFT 2 " >>config.h
 echo -e "#define ZYZZYVA 3 " >>config.h
 echo -e "#define HOTSTUFF 4 " >>config.h
+echo -e "#define RAFT 5" >>config.h
 echo -e "// Switching on RBFT consensus. " >>config.h
 echo -e "// Status: Partial implementation, only for PBFT. " >>config.h
 echo -e "#define RBFT_ON false " >>config.h

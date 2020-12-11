@@ -89,7 +89,7 @@ void BChain::add_block(TxnManager *txn) {
 	blk->add_batch(txn->batchreq);
 
 #if CONSENSUS == RAFT
-	blk->set_term(txn->batchreq->term)
+	blk->set_term(txn->batchreq->term);
 #endif
 
 	for(uint64_t i=0; i<txn->commit_msgs.size(); i++) {
@@ -172,7 +172,7 @@ void BChain::remove_since_index(uint64_t i) {
 			mem_allocator.free(blks[i], sizeof(BChainStruct));
 		}
 	}
-	blks.clear()
+	blks.clear();
 }
 
 /* Gets the batchrequest stored on the i-th block of the blockchain */
@@ -199,7 +199,6 @@ BatchRequests *BChain::get_batch_at_index(uint64_t i) {
 	(used by primary to forward committed transactions to workers) */
 std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 	std::vector<BatchRequests *> batches;
-	bool success = false;
 
 	chainLock.lock();
 	if (start < bchain_map.size()) 
@@ -208,7 +207,6 @@ std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 		{
 			batches.push_back(bchain_map[i]->get_batch_request());
 		}
-		success = true;
 	}
 	chainLock.unlock();
 
@@ -237,10 +235,10 @@ uint64_t BChain::get_term_at(uint64_t i) {
 }
 
 /* Get transaction id at block i */
-uint64_t get_txn_id_at(uint64_t i) {
+uint64_t BChain::get_txn_id_at(uint64_t i) {
 	uint64_t val = UINT64_MAX;
 	chainLock.lock();
-	if (i < bchain_map.size()) {
+	if (i < this->bchain_map.size()) {
 		val = bchain_map[i]->get_txn_id();
 	}
 	chainLock.unlock();
@@ -263,16 +261,16 @@ bool BChain::check_term_match_at(uint64_t i, uint64_t t) {
 /* add proof to the block at index i (AppendEntriesResponse for Raft) */
 void BChain::add_proof_at(uint64_t i, Message *proof) {
 	chainLock.lock();
-	if (i < bchain_map.size()) {
+	if (i < this->bchain_map.size()) {
 		bchain_map[i]->add_commit_proof(proof);
 	}
 	chainLock.unlock();
 }
 
-void add_proof_for_range(uint64_t start, uint64_t end, Message *proof) {
+void BChain::add_proof_for_range(uint64_t start, uint64_t end, Message *proof) {
 	assert(start < end);
 	chainLock.lock();
-	if (end <= bchain_map.size()) {
+	if (end <= this->bchain_map.size()) {
 		for (uint64_t i = start; i < end; i++) {
 			bchain_map[i]->add_commit_proof(proof);
 		}
