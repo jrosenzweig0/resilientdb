@@ -28,6 +28,7 @@ RC WorkerThread::append_entries() {
 
     // 
 
+    assert(g_node_id == get_current_view(get_thd_id()));
     // create the append entries rpc message for each node
     // std::vector<AppendEntriesRPC *> aerpcs;
 
@@ -76,6 +77,15 @@ RC WorkerThread::append_entries() {
 RC WorkerThread::process_append_entries(Message *msg) {
 
     // TODO: reset timer
+    // if lastApplied < commitIndex, execute transactions until caught up
+    uint64_t lA;
+    while (get_commitIndex() > get_lastApplied()) {
+        inc_lastApplied();
+        lA = get_lastApplied();
+        txn_man = get_transaction_manager(BlockChain->get_txn_id(lA), 0);
+        txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
+        send_execute_msg();
+    }
 
     AppendEntriesRPC *aerpc = (AppendEntriesRPC *)msg;
 
@@ -95,34 +105,108 @@ RC WorkerThread::process_append_entries(Message *msg) {
     }
 
     // reply false if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
-    if (!BlockChain->check_term_match_at(aerpc->prevLogIndex, aerpc->prevLogTerm)) {
+    else if (!BlockChain->check_term_match_at(aerpc->prevLogIndex, aerpc->prevLogTerm)) {
         aer->success = false;
     }
 
-    if (!BlockChain->check_term_match_at(aerpc->prevLogIndex + 1, aerpc->entries[0]->term)) {
-        BlockChain->remove_since_index(aerpc->prevLogIndex + 1);
+    else {
+        // If an existing enty conflicts with a new one, delete the existing entry and all that follow it
+        if (!BlockChain->check_term_match_at(aerpc->prevLogIndex + 1, aerpc->entries[0]->term)) {
+            BlockChain->remove_since_index(aerpc->prevLogIndex + 1);
+        }
+
+        // add all batch requests in entries to the blockchain (not committed)
+        for (uint64_t i = 0; i < aerpc->entries.size(); i++) {
+            // pointer to batch request
+            BatchRequests *breq = aerpc->entries[i];
+
+            // allocate transaction managers for all transactions in the batch i
+            set_txn_man_fields(breq, 0);
+
+            // Store BatchRequest Message
+            txn_man->set_primarybatch(breq);
+
+            // Add BatchRequest to the blockchain (not committed)
+            BlockChain->add_block(txn_man);
+        }
+
+
+        if (leaderCommit > get_commitIndex()) {
+            set_commitIndex(std::min(leaderCommit, BlockChain->get_length() - 1));
+        }
     }
 
-    // add all batch requests in entries to the blockchain (not committed)
-    for (uint64_t i = 0; i < aerpc->entries.size(); i++) {
-        // pointer to batch request
-        BatchRequests *breq = aerpc->entries[i];
+    // sign and send AppendEntriesResponse to leader
+    vector<string> emptyvec;
+    aer->sign(aerpc->leaderId);
 
-        // allocate transaction managers for all transactions in the batch i
-        set_txn_man_fields(breq, i);
+    emptyvec.push_back(aer->signature);
 
-        // NOT DONE
-        // BlockChain->add_block(get_transaction_manager())
+    vector<uint64_t> dest = nodes_to_send(leaderId, leaderId+1);
+    msg_queue.enqueue(get_thd_id(), aer, emptyvec, dest);
+    emptyvec.clear();
+
+    return RCOK;
+}
+
+
+/**
+ * Process the incoming AppendEntriesResponse
+ *
+ * this Function should do the following:
+ * - reply false to leader/primary if term < currentTerm
+ * - reply false if local log has no entry at prevLogIndex whose term matches prevLogTerm
+ * - if existing entry conflicts with new entry, (same index different terms),
+ *      delete existing entry and all following entries
+ * 
+ */
+RC WorkerThread::process_append_entries_resp(Message *msg) {
+
+    AppendEntriesResponse *aer = (AppendEntriesResponse *) msg;
+
+    // only the leader calls this function
+    assert(g_node_id == get_current_view(get_thd_id()));
+
+    // validate the AppendEntriesResponse message
+    validate_msg(aer);
+
+    // get the id of the node that sent the response message
+    uint64_t node = aer->return_node_id;
+
+    if (aer->success) {
+        // if success, 
+        set_node_matchIndex(node, BlockChain->get_length()-1);
+        set_node_nextIndex(node, BlockChain->get_length());
+    } else {
+        decr_node_nextIndex(node);
     }
+
+    //if majority of replicas have matching index N with primary, set commitIndex to N
+    uint64_t N = get_median_matchIndex();
+    if ((N > get_commitIndex()) && (BlockChain->check_term_match_at(N, get_currentTerm()))) {
+        set_commitIndex(N);
+    }
+
+    // if lastApplied < commitIndex, execute transactions until caught up
+    uint64_t lA;
+    while (get_commitIndex() > get_lastApplied()) {
+        inc_lastApplied();
+        lA = get_lastApplied();
+        txn_man = get_transaction_manager(BlockChain->get_txn_id(lA), 0);
+        txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
+        send_execute_msg();
+    }
+
+    return RCOK;
 }
 
 /**
- * Processes an incoming client batch and sends a Pre-prepare message to al replicas.
+ * Processes an incoming client batch and sends a AppendEntriesRPC to all replicas.
  *
  * This function assumes that a client sends a batch of transactions and 
  * for each transaction in the batch, a separate transaction manager is created. 
- * Next, this batch is forwarded to all the replicas as a BatchRequests Message, 
- * which corresponds to the Pre-Prepare stage in the PBFT protocol.
+ * Next, this batch added to the log (uncommitted) and sent to all other nodes 
+ * via AppendEntriesRPC
  *
  * @param msg Batch of Transactions of type CientQueryBatch from the client.
  * @return RC
@@ -149,8 +233,104 @@ RC WorkerThread::process_client_batch(Message *msg)
     fail_primary(msg, 9);
 #endif
 
-    // Initialize all transaction mangers and Send BatchRequests message.
-    create_and_send_batchreq(clbtch, clbtch->txn_id);
+    // Initialize all transaction mangers and construct the batchrequest
+    // create_and_send_batchreq(clbtch, clbtch->txn_id);
+
+    /*** taken from create_and_send_batch_requests ****/
+
+    Message *bmsg = Message::create_message(BATCH_REQ);
+    BatchRequests *breq = (BatchRequests *)bmsg;
+    breq->init(get_thd_id());
+
+    next_set = clbtch->txn_id;
+
+    string batchStr;
+
+     for (uint64_t i = 0; i < get_batch_size(); i++)
+    {
+        uint64_t txn_id = get_next_txn_id() + i;
+
+        //cout << "Txn: " << txn_id << " :: Thd: " << get_thd_id() << "\n";
+        //fflush(stdout);
+        txn_man = get_transaction_manager(txn_id, 0);
+
+        // Unset this txn man so that no other thread can concurrently use.
+        while (true)
+        {
+            bool ready = txn_man->unset_ready();
+            if (!ready)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        txn_man->register_thread(this);
+        txn_man->return_id = clbtch->return_node;
+
+        // Fields that need to updated according to the specific algorithm.
+        algorithm_specific_update(clbtch, i);
+
+        init_txn_man(clbtch->cqrySet[i]);
+
+        // Append string representation of this txn.
+        batchStr += clbtch->cqrySet[i]->getString();
+
+        // Setting up data for BatchRequests Message.
+        breq->copy_from_txn(txn_man, clbtch->cqrySet[i]);
+
+        // Reset this txn manager.
+        bool ready = txn_man->set_ready();
+        assert(ready);
+    }
+
+    // Now we need to unset the txn_man again for the last txn of batch.
+    while (true)
+    {
+        bool ready = txn_man->unset_ready();
+        if (!ready)
+        {
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    // Generating the hash representing the whole batch in last txn man.
+    txn_man->set_hash(calculateHash(batchStr));
+    txn_man->hashSize = txn_man->hash.length();
+
+    breq->copy_from_txn(txn_man);
+
+    // Storing the BatchRequests message.
+    txn_man->set_primarybatch(breq);
+
+    // Storing all the signatures.
+    vector<string> emptyvec;
+    TxnManager *tman = get_transaction_manager(txn_man->get_txn_id() - 2, 0);
+    for (uint64_t i = 0; i < g_node_cnt; i++)
+    {
+        if (i == g_node_id)
+        {
+            continue;
+        }
+        breq->sign(i);
+        tman->allsign.push_back(breq->signature); // Redundant
+        emptyvec.push_back(breq->signature);
+    }
+
+    /**********************************************/
+
+    // add the resulting batch request to the log
+    BlockChain->add_block(txn_man);
+
+    // broadcast AppendEntriesRPC
+    append_entries();
 
     return RCOK;
 }

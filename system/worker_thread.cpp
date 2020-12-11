@@ -95,17 +95,17 @@ void WorkerThread::process(Message *msg)
         rc = process_key_exchange(msg);
         break;
 #if CONSENSUS == RAFT
-    case RAFT_AE_RPC: // process incoming append entries RPC
+    case RAFT_AE_RPC: // (non-leader) process incoming append entries RPC
         rc = process_append_entries(msg);
         break;
-    // case RAFT_AE_RESP: // (leader-only) process append entries RPC response
-    //     rc = process_apnd_entry_resp(msg);
-    //     break;
+    case RAFT_AE_RESP: // (leader-only) process append entries RPC response
+        rc = process_append_entries_resp(msg);
+        break;
 #endif
-#if CONSENSUS == PBFT
     case CL_BATCH: // primary send preprepare
         rc = process_client_batch(msg);
         break;
+#if CONSENSUS == PBFT
     case BATCH_REQ: // send prepare
         rc = process_batch(msg);
         break;
@@ -952,9 +952,11 @@ RC WorkerThread::process_execute_msg(Message *msg)
     // Execute the transaction
     txn_man->run_txn();
 
+#if CONSENSUS == PBFT
 #if ENABLE_CHAIN
     // Add the block to the blockchain.
     BlockChain->add_block(txn_man);
+#endif
 #endif
 
     // Commit the results.
@@ -962,17 +964,28 @@ RC WorkerThread::process_execute_msg(Message *msg)
 
     crsp->copy_from_txn(txn_man);
 
+#if CONSENSUS == RAFT
+    // in raft, only the leader sends a client response
+    if (g_node_id == get_current_view(get_thd_id())) {
+#endif
+
     vector<string> emptyvec;
     vector<uint64_t> dest;
     dest.push_back(txn_man->client_id);
     msg_queue.enqueue(get_thd_id(), crsp, emptyvec, dest);
     dest.clear();
 
+#if CONSENSUS == RAFT
+    }
+#endif
+
     INC_STATS(_thd_id, tput_msg, 1);
     INC_STATS(_thd_id, msg_cl_out, 1);
 
+#if CONSENSUS == PBFT
     // Check and Send checkpoint messages.
     send_checkpoints(txn_man->get_txn_id());
+#endif
 
     // Setting the next expected prepare message id.
     set_expectedExecuteCount(get_batch_size() + msg->txn_id);
@@ -1364,7 +1377,7 @@ bool WorkerThread::validate_msg(Message *msg)
         }
         break;
 #endif
-        
+
     default:
         break;
     }

@@ -50,13 +50,13 @@ void BChainStruct::release_data() {
 #if CONSENSUS == RAFT
 
 /* set the term this block was committed */
-void set_term(uint64_t t) 
+void BChainStruct::set_term(uint64_t t) 
 {
 	term = t;
 }
 
 /* get the term this block was committed */
-uint64_t get_term()
+uint64_t BChainStruct::get_term()
 {
 	return term;
 }
@@ -67,6 +67,11 @@ BatchRequests *BChainStruct::get_batch_request()
 	char *buf = create_msg_buffer(batch_info);
 	Message *deepMsg = deep_copy_msg(buf, batch_info);
 	return (BatchRequests *) deepMsg; // !!! this might not work !!!
+}
+
+/* Get the number of commit messages on the block */
+uint64_t BChainStruct::get_commit_len() {
+	return commit_proof.size();
 }
 
 #endif
@@ -82,6 +87,10 @@ void BChain::add_block(TxnManager *txn) {
 
 	blk->set_txn_id(txn->get_txn_id());
 	blk->add_batch(txn->batchreq);
+
+#if CONSENSUS == RAFT
+	blk->set_term(txn->batchreq->term)
+#endif
 
 	for(uint64_t i=0; i<txn->commit_msgs.size(); i++) {
 		blk->add_commit_proof(txn->commit_msgs[i]);
@@ -227,6 +236,17 @@ uint64_t BChain::get_term_at(uint64_t i) {
 	return term;
 }
 
+/* Get transaction id at block i */
+uint64_t get_txn_id_at(uint64_t i) {
+	uint64_t val = UINT64_MAX;
+	chainLock.lock();
+	if (i < bchain_map.size()) {
+		val = bchain_map[i]->get_txn_id();
+	}
+	chainLock.unlock();
+	return val;
+}
+
 /* Checks that the term of block i matches the given term t */
 bool BChain::check_term_match_at(uint64_t i, uint64_t t) {
 	bool ret = false;
@@ -237,6 +257,37 @@ bool BChain::check_term_match_at(uint64_t i, uint64_t t) {
 	}
 	chainLock.unlock();
 
+	return ret;
+}
+
+/* add proof to the block at index i (AppendEntriesResponse for Raft) */
+void BChain::add_proof_at(uint64_t i, Message *proof) {
+	chainLock.lock();
+	if (i < bchain_map.size()) {
+		bchain_map[i]->add_commit_proof(proof);
+	}
+	chainLock.unlock();
+}
+
+void add_proof_for_range(uint64_t start, uint64_t end, Message *proof) {
+	assert(start < end);
+	chainLock.lock();
+	if (end <= bchain_map.size()) {
+		for (uint64_t i = start; i < end; i++) {
+			bchain_map[i]->add_commit_proof(proof);
+		}
+	}
+	chainLock.unlock();
+}
+
+
+bool BChain::check_proof_at(uint64_t i, uint64_t half) {
+	bool ret = false;
+	chainLock.lock();
+	if (i < bchain_map.size()) {
+		ret = (bchain_map[i]->get_commit_len() > half);
+	}
+	chainLock.unlock();
 	return ret;
 }
 

@@ -27,6 +27,7 @@ public:
 	void set_term(uint64_t t);
 	uint64_t get_term();
 	BatchRequests *get_batch_request();
+	uint64_t get_commit_len();
 
 #endif
 };
@@ -49,7 +50,11 @@ public:
 	std::vector<BatchRequests *> get_batches_since_index(uint64_t start);
 	uint64_t get_length();
 	uint64_t get_term_at(uint64_t i);
+	uint64_t get_txn_id_at(uint64_t i);
 	bool check_term_match_at(uint64_t i, uint64_t t);
+	void add_proof_at(uint64_t i, Message *proof);
+	void add_proof_for_range(uint64_t start, uint64_t end, Message *proof); // end exclusive
+	bool check_proof_at(uint64_t i, uint64_t half);
 
 #endif
 

@@ -120,6 +120,7 @@ void MessageQueue::enqueue(uint64_t thd_id, Message *msg, const vector<string> &
     case CL_RSP:
     case CL_BATCH:
     case RAFT_AE_RPC:
+    case RAFT_AE_RESP:
     {
         // Based on the destination (only 1), messages are placed in the queue.
         entry->starttime = get_sys_clock();

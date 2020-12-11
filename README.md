@@ -98,10 +98,12 @@ txn table - pool of all active transaction managers on the node
 - (12/8) added lastApplied and helper functions
 - (12/8) added nextIndex[] and helper functions
 - (12/8) added matchIndex[] and helper functions
+- (12/11) more helper functions
 
 `chain`
 - (12/8) added additional helper functions for accessing the blockchain log
 - (12/9) added term and helper functions for it
+- (12/11) more helper functions
 
 `messages`:
 - (12/5) ~~add the AppendEntriesRPC message subclass~~
@@ -117,6 +119,7 @@ txn table - pool of all active transaction managers on the node
 
 `worker_thread_raft`:
 - (12/4) created to replace `worker_thread_pbft` when RAFT invoked. currently a copy of `worker_thread_pbft`
+- (12/11) most of append_entries, process_append_entries, and process_append_entries_response done. tweaked process_client_batch
 
 `msg_queue`: 
 - (12/10) updated msq_queue to send AppendEntriesRPCs

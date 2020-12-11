@@ -232,6 +232,15 @@ uint64_t get_commitIndex() {
 	return val;
 }
 
+/* Set commitIndex (only do if in follower, strictly increasing) */
+void set_commitIndex(uint64_t i) {
+	commitIndMTX.lock();
+	if (commitIndex < i) {
+		commitIndex = i;
+	}
+	commitIndMTX.unlock();
+}
+
 /*
  * lastApplied
  * index of highest log entry applied to state machine
@@ -276,6 +285,15 @@ void inc_node_nextIndex(uint64_t node) {
 	}
 }
 
+/* Decrements index of next log entry ot send to node */
+void decr_node_nextIndex(uint64_t node) {
+	if (node > 0) {
+		nextIndMTX.lock();
+		nextIndex[node]--;
+		nextIndMTX.unlock();
+	}
+}
+
 /* Gets the index of the next log entry to send to node 
 	Returns UINT64_MAX if node invalid */
 uint64_t get_node_nextIndex(uint64_t node) {
@@ -288,13 +306,24 @@ uint64_t get_node_nextIndex(uint64_t node) {
 	return val;
 }
 
+/* Set the index of the next log entry to send to node */
+void set_node_nextIndex(uint64_t node, uint64_t ind) {
+	if (node < g_node_cnt) {
+		nextIndMTX.lock();
+		if (nextIndex[node] < ind) {
+			nextIndex[node] == ind;
+		}
+		nextIndMTX.unlock();
+	}
+}
+
 /* Initializes the nextIndex array leader's last log index + 1 */
 void init_nextIndex_arr() {
 	nextIndMTX.lock();
 	for (uint64_t i = 0; i < g_node_cnt; i++) {
 		nextIndex[i] = g_next_index;
 	}
-	
+	nextIndMTX.unlock();
 }
 
 /*
@@ -323,6 +352,32 @@ uint64_t get_node_matchIndex(uint64_t node) {
 		matchIndMTX.unlock();
 	}
 	return val;
+}
+
+/* Set the index of the highest known log entry on node */
+void set_node_matchIndex(uint64_t node, uint64_t ind) {
+	if (node < g_node_cnt) {
+		matchIndMTX.lock();
+		if (matchIndex[node] < ind) {
+			matchIndex[node] = ind;
+		}
+		matchIndMTX.unlock();
+	}
+}
+
+/* Gets the floored median of the matchIndex array */
+uint64_t get_median_matchIndex() {
+	uint64_t arr[NODE_CNT];
+	matchIndMTX.lock();
+	std::copy(std::begin(matchIndex), std::end(matchIndex), std::begin(arr));
+	matchIndMTX.unlock();
+	std::sort(std::begin(arr), std::end(arr));
+
+	if (g_node_cnt % 2 != 0) {
+		return arr[g_node_cnt / 2];
+	} else {
+		return (arr[(g_node_cnt-1)/2] + arr[(g_node_cnt+1)/2]) / 2
+	}
 }
 
 /************************************/

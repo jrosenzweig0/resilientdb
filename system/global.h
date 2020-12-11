@@ -327,6 +327,7 @@ extern uint64_t commitIndex;
 extern std::mutex commitIndMTX;
 void inc_commitIndex();
 uint64_t get_commitIndex();
+void set_commitIndex(uint64_t i);
 
 extern uint64_t lastApplied;
 extern std::mutex lastAppMTX;
@@ -337,13 +338,17 @@ uint64_t get_lastApplied();
 extern uint64_t nextIndex[NODE_CNT];
 extern std::mutex nextIndMTX;
 void inc_node_nextIndex(uint64_t node);
+void decr_node_nextIndex(uint64_t node);
 uint64_t get_node_nextIndex(uint64_t node);
+void set_node_nextIndex(uint64_t node, uint64_t ind);
 void init_nextIndex_arr();
 
 extern uint64_t matchIndex[NODE_CNT];
 extern std::mutex matchIndMTX;
 void inc_node_matchIndex(uint64_t node);
 uint64_t get_node_matchIndex(uint64_t node);
+void set_node_matchIndex(uint64_t node, uint64_t ind);
+uint64_t get_median_matchIndex();
 
 /************************************/
 
