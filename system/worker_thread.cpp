@@ -93,6 +93,18 @@ void WorkerThread::process(Message *msg)
     case KEYEX:
         rc = process_key_exchange(msg);
         break;
+    case RAFT_APPEND_ENTRIES_REQ:
+        rc = process_append_entries_req(msg);
+        break;
+    case RAFT_APPEND_ENTRIES_RES:
+        rc = process_append_entries_res(msg);
+        break;
+    case RAFT_REQUEST_VOTES_REQ:
+        // rc = process_request_votes_req(msg);
+        break;
+    case RAFT_REQUEST_VOTES_RES:
+        // rc = process_request_votes_res(msg);
+        break;
     case CL_BATCH:
         rc = process_client_batch(msg);
         break;
@@ -840,6 +852,126 @@ void WorkerThread::send_execute_msg()
 {
     Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
     work_queue.enqueue(get_thd_id(), tmsg, false);
+}
+
+RC WorkerThread::process_append_entries_req(Message *msg) {
+
+    AppendEntriesRequestMessage *append_entries_request_msg = (AppendEntriesRequestMessage *)msg;
+
+    Message *rsp = Message::create_message(RAFT_APPEND_ENTRIES_RES);
+    AppendEntriesResponseMessage *append_entries_response_msg = (AppendEntriesResponseMessage *)rsp;
+    append_entries_response_msg->init();
+
+    
+
+    if (g_current_term > append_entries_request_msg->view) {
+        append_entries_response_msg->success = false;
+
+    } else {
+        if (BlockChain->bchain_map.at(append_entries_request_msg->prev_log_index)->term == append_entries_request_msg->prev_log_term) {
+            for (int i = BlockChain->bchain_map.size(); i > append_entries_request_msg->prev_log_index; i++) {
+                BlockChain->remove_block(BlockChain->bchain_map.at(i)->get_txn_id());
+            }
+
+            g_current_term = append_entries_request_msg->view;
+            txn_man = get_transaction_manager(append_entries_request_msg->end_index, 0);
+            //can probably delete this loop
+            while (true)
+            {
+                bool ready = txn_man->unset_ready();
+                if (!ready)
+                {
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            BlockChain->add_block(txn_man);
+            append_entries_response_msg->success = true;
+            commit_index = append_entries_request_msg->leader_commit_index;
+            for (int i = 0; i <= commit_index; i++) {
+                chainLock.lock();
+                BlockChain->bchain_map.at(i)->client_response_sent = true;
+                chainLock.unlock();
+            }
+
+        } else {
+            append_entries_response_msg->success = false;
+        }
+
+    
+
+
+
+    
+
+
+        // INC_STATS(_thd_id, tput_msg, 1);
+        // INC_STATS(_thd_id, msg_cl_out, 1);
+
+        // // Check and Send checkpoint messages.
+        // send_checkpoints(txn_man->get_txn_id());
+
+        // // Setting the next expected prepare message id.
+        // set_expectedExecuteCount(get_batch_size() + msg->txn_id);
+
+        // // End the execute counter.
+        // INC_STATS(get_thd_id(), time_execute, get_sys_clock() - ctime);
+    }
+    vector<string> emptyvec;
+    vector<uint64_t> dest;
+    dest.push_back(append_entries_request_msg->return_node);
+    msg_queue.enqueue(get_thd_id(), append_entries_response_msg, emptyvec, dest);
+    dest.clear();
+
+    return RCOK;
+}
+
+RC WorkerThread::process_append_entries_res(Message *msg) {
+    AppendEntriesResponseMessage *append_entries_response_msg = (AppendEntriesResponseMessage *)msg;
+    if (append_entries_response_msg->success) {
+        match_index[append_entries_response_msg->return_node] += 1;
+        next_index[append_entries_response_msg->return_node] += 1;
+    } else {
+        next_index[append_entries_response_msg->return_node] -= 1;
+        Message *rsp = Message::create_message(RAFT_APPEND_ENTRIES_REQ);
+        AppendEntriesRequestMessage *append_entries_request_msg = (AppendEntriesRequestMessage *)rsp;
+
+        BlockChain->bchain_map[next_index[append_entries_response_msg->return_node]]->txn_id
+
+        append_entries_request_msg->heartbeat = false;
+        append_entries_request_msg->leader_commit_index = commit_index;
+        append_entries_request_msg->view = g_current_term;
+        append_entries_request_msg->txn_id = BlockChain->bchain_map[next_index[append_entries_response_msg->return_node]]->txn_id;
+        append_entries_request_msg->return_node_id = g_node_id;
+        append_entries_request_msg
+        uint64_t batch_id;
+
+        uint64_t wq_time;
+        uint64_t mq_time;
+        uint64_t ntwk_time;
+
+        //signature is 768 chars, pubkey is 840
+        uint64_t sigSize = 1;
+        uint64_t keySize = 1;
+        string signature = "0";
+        string pubKey = "0";
+
+        uint64_t index;       // position in sequence of requests
+        string hash;          //request message digest
+        uint64_t hashSize;    //size of hash (for removing from buf)
+        uint64_t return_node; //id of node that sent this message
+
+        uint64_t end_index;
+        uint64_t batch_size;
+
+        uint64_t prev_log_index;
+        uint64_t prev_log_term;
+
+    }
+    return RCOK
 }
 
 /**

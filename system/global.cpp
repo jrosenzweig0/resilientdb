@@ -285,6 +285,19 @@ void set_current_view(uint64_t thd_id, uint64_t view)
 	local_view[thd_id] = view;
 }
 
+//state variables related to raft 
+#if CONSENSUS == RAFT
+uint32_t g_current_term = 0;
+uint32_t g_voted_for = NULL;
+// volitle state variables for servers
+uint32_t commit_index = 0;
+uint32_t last_applied = 0;
+// volitile state variables for leaders
+uint32_t next_index [g_node_cnt] = {1};
+uint32_t match_index [g_node_cnt] = {0};
+
+#endif
+
 #if VIEW_CHANGES == true
 // For updating view of different threads.
 std::mutex newViewMTX[BATCH_THREADS + REM_THREAD_CNT + 2];

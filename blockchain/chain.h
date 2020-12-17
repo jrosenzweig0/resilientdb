@@ -11,6 +11,8 @@
 class BChainStruct
 {
 	uint64_t txn_id;
+	uint64_t term;
+	bool committed;
 	BatchRequests *batch_info;	// BatchRequests msg from primary.
 	vector<Message *> commit_proof; // Signed commit messages.
 

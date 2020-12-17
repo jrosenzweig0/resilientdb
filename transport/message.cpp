@@ -128,6 +128,12 @@ Message *Message::create_message(RemReqType rtype)
 	case BATCH_REQ:
 		msg = new BatchRequests;
 		break;
+	case RAFT_APPEND_ENTRIES_REQ:
+		msg = new AppendEntriesRequestMessage;
+		break;
+	case RAFT_APPEND_ENTRIES_REs:
+		msg = new AppendEntriesResponseMessage;
+		break;
 
 #if VIEW_CHANGES == true
 	case VIEW_CHANGE:
@@ -2027,6 +2033,268 @@ void PBFTCommitMessage::sign(uint64_t dest_node)
 
 //makes sure message is valid, returns true or false;
 bool PBFTCommitMessage::validate()
+{
+	string message = this->toString();
+
+#if USE_CRYPTO
+	//verify signature of message
+	if (!validateNodeNode(message, this->pubKey, this->signature, this->return_node_id))
+	{
+		assert(0);
+		return false;
+	}
+#endif
+
+	return true;
+}
+
+/****************************************/
+
+uint64_t AppendEntriesRequestMessage::get_size()
+{
+	uint64_t size = Message::mget_size();
+
+	size += sizeof(view);
+	size += sizeof(index);
+	size += hash.length();
+	size += sizeof(hashSize);
+	size += sizeof(return_node);
+	size += sizeof(end_index);
+	size += sizeof(batch_size);
+	size += sizeof(leader_commit_index);
+	size += sizeof(prev_log_index);
+	size += sizeof(prev_log_term);
+	size += sizeof(heartbeat);
+
+
+	return size;
+}
+
+void AppendEntriesRequestMessage::copy_from_txn(TxnManager *txn)
+{
+	Message::mcopy_from_txn(txn);
+
+	this->view = get_current_view(local_view[txn->get_thd_id()]);
+	this->end_index = txn->get_txn_id();
+	this->index = this->end_index + 1 - get_batch_size();
+	this->hash = txn->get_hash();
+	this->hashSize = txn->get_hashSize();
+	this->return_node = g_node_id;
+	this->batch_size = get_batch_size();
+}
+
+void AppendEntriesRequestMessage::copy_to_txn(TxnManager *txn)
+{
+	Message::mcopy_to_txn(txn);
+}
+
+void AppendEntriesRequestMessage::copy_from_buf(char *buf)
+{
+	Message::mcopy_from_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+
+	COPY_VAL(view, buf, ptr);
+	COPY_VAL(index, buf, ptr);
+	COPY_VAL(hashSize, buf, ptr);
+
+	ptr = buf_to_string(buf, ptr, hash, hashSize);
+
+	COPY_VAL(return_node, buf, ptr);
+	COPY_VAL(end_index, buf, ptr);
+	COPY_VAL(batch_size, buf, ptr);
+	COPY_VAL(leader_commit_index, buf, ptr);
+	COPY_VAL(prev_log_index, buf, ptr);
+	COPY_VAL(prev_log_term, buf, ptr);
+	COPY_VAL(heartbeat, buf, ptr);
+
+	assert(ptr == get_size());
+}
+
+void AppendEntriesRequestMessage::copy_to_buf(char *buf)
+{
+	Message::mcopy_to_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+
+	COPY_BUF(buf, view, ptr);
+	COPY_BUF(buf, index, ptr);
+	COPY_BUF(buf, hashSize, ptr);
+
+	char v;
+	for (uint64_t i = 0; i < hash.size(); i++)
+	{
+		v = hash[i];
+		COPY_BUF(buf, v, ptr);
+	}
+
+	COPY_BUF(buf, return_node, ptr);
+	COPY_BUF(buf, end_index, ptr);
+	COPY_BUF(buf, batch_size, ptr);
+	COPY_BUF(buf, leader_commit_index, ptr);
+	COPY_BUF(buf, prev_log_index, ptr);
+	COPY_BUF(buf, prev_log_term, ptr);
+	COPY_BUF(buf, heartbeat, ptr);
+
+	assert(ptr == get_size());
+}
+
+string AppendEntriesRequestMessage::toString()
+{
+	string signString = std::to_string(this->view);
+	signString += '_' + std::to_string(this->index) + '_' +
+				  this->hash + '_' + std::to_string(this->return_node) +
+				  '_' + to_string(this->end_index);
+
+	return signString;
+}
+
+//signs current message
+void AppendEntriesRequestMessage::sign(uint64_t dest_node)
+{
+#if USE_CRYPTO
+	string message = this->toString();
+
+	//cout << "Signing Commit msg: " << message << endl;
+	signingNodeNode(message, this->signature, this->pubKey, dest_node);
+#else
+	this->signature = "0";
+#endif
+	this->sigSize = this->signature.size();
+	this->keySize = this->pubKey.size();
+}
+
+//makes sure message is valid, returns true or false;
+bool AppendEntriesRequestMessage::validate()
+{
+	string message = this->toString();
+
+#if USE_CRYPTO
+	//verify signature of message
+	if (!validateNodeNode(message, this->pubKey, this->signature, this->return_node_id))
+	{
+		assert(0);
+		return false;
+	}
+#endif
+
+	return true;
+}
+
+/****************************************/
+
+void AppendEntriesResponseMessage::init() 
+{
+	this->return_node = g_node_id;
+	this->view = g_current_term;
+}
+
+uint64_t AppendEntriesResponseMessage::get_size()
+{
+	uint64_t size = Message::mget_size();
+
+	size += sizeof(view);
+	size += sizeof(index);
+	size += hash.length();
+	size += sizeof(hashSize);
+	size += sizeof(return_node);
+	size += sizeof(end_index);
+	size += sizeof(batch_size);
+	size += sizeof(success);
+
+	return size;
+}
+
+void AppendEntriesResponseMessage::copy_from_txn(TxnManager *txn)
+{
+	Message::mcopy_from_txn(txn);
+
+	this->view = get_current_view(local_view[txn->get_thd_id()]);
+	this->end_index = txn->get_txn_id();
+	this->index = this->end_index + 1 - get_batch_size();
+	this->hash = txn->get_hash();
+	this->hashSize = txn->get_hashSize();
+	this->return_node = g_node_id;
+	this->batch_size = get_batch_size();
+}
+
+void AppendEntriesResponseMessage::copy_to_txn(TxnManager *txn)
+{
+	Message::mcopy_to_txn(txn);
+}
+
+void AppendEntriesResponseMessage::copy_from_buf(char *buf)
+{
+	Message::mcopy_from_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+
+	COPY_VAL(view, buf, ptr);
+	COPY_VAL(index, buf, ptr);
+	COPY_VAL(hashSize, buf, ptr);
+
+	ptr = buf_to_string(buf, ptr, hash, hashSize);
+
+	COPY_VAL(return_node, buf, ptr);
+	COPY_VAL(end_index, buf, ptr);
+	COPY_VAL(batch_size, buf, ptr);
+	COPY_VAL(success, buf, ptr);
+
+	assert(ptr == get_size());
+}
+
+void AppendEntriesResponseMessage::copy_to_buf(char *buf)
+{
+	Message::mcopy_to_buf(buf);
+
+	uint64_t ptr = Message::mget_size();
+
+	COPY_BUF(buf, view, ptr);
+	COPY_BUF(buf, index, ptr);
+	COPY_BUF(buf, hashSize, ptr);
+
+	char v;
+	for (uint64_t i = 0; i < hash.size(); i++)
+	{
+		v = hash[i];
+		COPY_BUF(buf, v, ptr);
+	}
+
+	COPY_BUF(buf, return_node, ptr);
+	COPY_BUF(buf, end_index, ptr);
+	COPY_BUF(buf, batch_size, ptr);
+	COPY_BUF(buf, success, ptr);
+
+	assert(ptr == get_size());
+}
+
+string AppendEntriesResponseMessage::toString()
+{
+	string signString = std::to_string(this->view);
+	signString += '_' + std::to_string(this->index) + '_' +
+				  this->hash + '_' + std::to_string(this->return_node) +
+				  '_' + to_string(this->end_index);
+
+	return signString;
+}
+
+//signs current message
+void AppendEntriesResponseMessage::sign(uint64_t dest_node)
+{
+#if USE_CRYPTO
+	string message = this->toString();
+
+	//cout << "Signing Commit msg: " << message << endl;
+	signingNodeNode(message, this->signature, this->pubKey, dest_node);
+#else
+	this->signature = "0";
+#endif
+	this->sigSize = this->signature.size();
+	this->keySize = this->pubKey.size();
+}
+
+//makes sure message is valid, returns true or false;
+bool AppendEntriesResponseMessage::validate()
 {
 	string message = this->toString();
 

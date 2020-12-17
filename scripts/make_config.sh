@@ -4,7 +4,7 @@ nodes=$1
 cnodes=$2
 [ ! -z "$3" ] && max_inf=$3 || max_inf="20000"
 
-consensus="PBFT"
+consensus="RAFT"
 
 echo -e "#ifndef _CONFIG_H_ " >config.h
 echo -e "#define _CONFIG_H_ " >>config.h
@@ -162,6 +162,7 @@ echo -e "#define DBFT 1 " >>config.h
 echo -e "#define PBFT 2 " >>config.h
 echo -e "#define ZYZZYVA 3 " >>config.h
 echo -e "#define HOTSTUFF 4 " >>config.h
+echo -e "#define RAFT 5 //must have enable_chain true " >>config.h
 echo -e "// Switching on RBFT consensus. " >>config.h
 echo -e "// Status: Partial implementation, only for PBFT. " >>config.h
 echo -e "#define RBFT_ON false " >>config.h
@@ -224,6 +225,9 @@ echo -e "#define EXT_DB SQL" >> config.h
 echo -e "#define MEMORY 1" >> config.h
 echo -e "#define SQL 2" >> config.h
 echo -e "#define SQL_PERSISTENT 3" >> config.h
+echo -e "" >>config.h
+echo -e "// To allow testing of a Banking Smart Contracts. " >>config.h
+echo -e "#define BANKING_SMART_CONTRACT false" >>config.h
 echo -e "" >>config.h
 echo -e "#endif" >>config.h
 echo -e "" >>config.h

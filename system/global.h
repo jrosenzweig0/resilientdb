@@ -205,6 +205,12 @@ enum RemReqType
     PBFT_PREP_MSG,   // Prepare
     PBFT_COMMIT_MSG, // Commit
     PBFT_CHKPT_MSG   // Checkpoint and Garbage Collection
+#if CONSENSUS == RAFT
+    RAFT_APPEND_ENTRIES_REQ
+    RAFT_APPEND_ENTRIES_RES
+    RAFT_REQUEST_VOTES_REQ
+    RAFT_REQUEST_VOTES_RES
+#endif
 
 };
 
@@ -364,6 +370,19 @@ extern std::mutex newViewMTX[BATCH_THREADS + REM_THREAD_CNT + 2];
 extern bool newView[BATCH_THREADS + REM_THREAD_CNT + 2];
 bool get_newView(uint64_t thd_id);
 void set_newView(uint64_t thd_id, bool val);
+#endif
+
+//state variables related to raft 
+#if CONSENSUS == RAFT
+extern uint32_t g_current_term = 0;
+extern uint32_t g_voted_for = NULL;
+// volitle state variables for servers
+extern uint32_t commit_index = 0;
+extern uint32_t last_applied = 0;
+// volitile state variables for leaders
+extern uint32_t next_index [g_node_cnt] = {};
+extern uint32_t match_index [g_node_cnt] = {};
+
 #endif
 
 // Size of the batch.

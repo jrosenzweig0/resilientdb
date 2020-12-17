@@ -124,6 +124,13 @@ int main(int argc, char *argv[])
     printf("Initializing Chain... ");
     fflush(stdout);
     BlockChain = new  BChain();
+    BChainStruct *blk = (BChainStruct *)mem_allocator.alloc(sizeof(BChainStruct));
+	new (blk) BChainStruct();
+	blk->term = 0;
+	blk->client_response_sent = true;
+	chainLock.lock();
+	   BlockChain->bchain_map.push_back(blk);
+	chainLock.unlock();
     printf("Done\n");
 
 #if TIMER_ON

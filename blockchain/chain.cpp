@@ -1,4 +1,5 @@
 #include "chain.h"
+#include "global.h"
 
 /* Set the identifier for the block. */
 void BChainStruct::set_txn_id(uint64_t tid)
@@ -51,6 +52,8 @@ void BChain::add_block(TxnManager *txn) {
 
 	blk->set_txn_id(txn->get_txn_id());
 	blk->add_batch(txn->batchreq);
+	blk->term = g_current_term;
+	blk->committed = false;
 
 	for(uint64_t i=0; i<txn->commit_msgs.size(); i++) {
 		blk->add_commit_proof(txn->commit_msgs[i]);

@@ -416,6 +416,61 @@ public:
     uint64_t batch_size;
 };
 
+class AppendEntriesRequestMessage : public Message
+{
+public:
+    void copy_from_buf(char *buf);
+    void copy_to_buf(char *buf);
+    void copy_from_txn(TxnManager *txn);
+    void copy_to_txn(TxnManager *txn);
+    uint64_t get_size();
+    void init() {}
+    void release() {}
+    string toString();
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate();
+
+    uint64_t view;        // primary node id
+    uint64_t index;       // position in sequence of requests
+    string hash;          //request message digest
+    uint64_t hashSize;    //size of hash (for removing from buf)
+    uint64_t return_node; //id of node that sent this message
+
+    uint64_t end_index;
+    uint64_t batch_size;
+
+    uint64_t leader_commit_index;
+    uint64_t prev_log_index;
+    uint64_t prev_log_term;
+    bool heartbeat;
+}
+
+class AppendEntriesResponseMessage : public Message
+{
+public:
+    void copy_from_buf(char *buf);
+    void copy_to_buf(char *buf);
+    void copy_from_txn(TxnManager *txn);
+    void copy_to_txn(TxnManager *txn);
+    uint64_t get_size();
+    void init() {}
+    void release() {}
+    string toString();
+    void sign(uint64_t dest_node = UINT64_MAX);
+    bool validate();
+
+    uint64_t view;        // primary node id
+    uint64_t index;       // position in sequence of requests
+    string hash;          //request message digest
+    uint64_t hashSize;    //size of hash (for removing from buf)
+    uint64_t return_node; //id of node that sent this message
+
+    uint64_t end_index;
+    uint64_t batch_size;
+    bool success;
+}
+
+
 /****************************************/
 /*	VIEW CHANGE SPECIFIC		*/
 /****************************************/
@@ -491,4 +546,3 @@ void clearAllVCMsg();
 
 #endif // VIEW_CHANGE
 
-#endif
