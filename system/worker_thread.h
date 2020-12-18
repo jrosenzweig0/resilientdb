@@ -36,6 +36,7 @@ public:
     /******* RAFT *******/
 
     RC append_entries();                            // worker_thread_raft
+    RC append_entries(uint64_t node);               // worker_thread_raft
     RC process_append_entries(Message *msg);        // worker_thread_raft
     RC process_append_entries_resp(Message *msg);   // worker_thread_raft
 

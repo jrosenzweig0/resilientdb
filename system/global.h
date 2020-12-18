@@ -316,6 +316,11 @@ uint64_t curr_next_index();
 
 /********** RAFT ADDITIONS **********/
 
+extern bool first_block;
+extern std::mutex cfbMTX;
+bool is_first_block();
+void first_block_sent();
+
 // Persistent State
 extern uint64_t currentTerm;
 extern std::mutex cTermMTX;

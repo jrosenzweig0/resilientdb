@@ -184,6 +184,23 @@ uint64_t curr_next_index()
 
 /********** RAFT ADDITIONS **********/
 
+bool first_block = true;
+std::mutex cfbMTX;
+
+bool is_first_block() {
+	bool ret;
+	cfbMTX.lock();
+	ret = first_block;
+	cfbMTX.unlock();
+	return ret;
+}
+
+void first_block_sent() {
+	cfbMTX.lock();
+	first_block = false;
+	cfbMTX.unlock();
+}
+
 /********* Persistent State *********/
 
 /* 
@@ -273,7 +290,7 @@ uint64_t get_lastApplied() {
  * for each server, index of the next log entry to send to that server 
  * (initialized to leader last log index + 1)
  */
-uint64_t nextIndex[NODE_CNT] = {1};
+uint64_t nextIndex[NODE_CNT] = {0};
 std::mutex nextIndMTX;
 
 /* Increments the index of the next log entry to send to node */

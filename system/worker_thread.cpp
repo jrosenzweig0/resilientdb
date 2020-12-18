@@ -706,9 +706,9 @@ RC WorkerThread::run()
             continue;
         }
 
-#if CONSENSUS == PBFT
+// #if CONSENSUS == PBFT
         // Based on the type of the message, we try acquiring the transaction manager.
-        if (msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
+        if (msg->rtype != RAFT_AE_RPC && msg->rtype != RAFT_AE_RESP && msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
         {
             txn_man = get_transaction_manager(msg->txn_id, 0);
 
@@ -724,7 +724,7 @@ RC WorkerThread::run()
             }
             txn_man->register_thread(this);
         }
-#endif
+// #endif
 
         // Th execut-thread only picks up the next batch for execution.
         if (msg->rtype == EXECUTE_MSG)
@@ -987,10 +987,10 @@ RC WorkerThread::process_execute_msg(Message *msg)
 #if CONSENSUS == PBFT
     // Check and Send checkpoint messages.
     send_checkpoints(txn_man->get_txn_id());
-#endif
 
     // Setting the next expected prepare message id.
     set_expectedExecuteCount(get_batch_size() + msg->txn_id);
+#endif
 
     // End the execute counter.
     INC_STATS(get_thd_id(), time_execute, get_sys_clock() - ctime);
