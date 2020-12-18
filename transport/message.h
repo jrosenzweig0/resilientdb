@@ -389,6 +389,7 @@ public:
     // for protocol
     uint64_t term;
     bool success;
+    uint64_t matchIndex;
 };
 
 #endif

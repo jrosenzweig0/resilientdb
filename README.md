@@ -110,6 +110,7 @@ txn table - pool of all active transaction managers on the node
 - (12/5) ~~add AppendEntriesResponse~~ 
 - (12/9) added AppendEntriesRPC message subclass, started helper functions
 - (12/10) continuing to fill out helper functions for AppendEntriesRPC
+- (12/17) added matchIndex to AppendEntriesResponse (primary adds to its blockchain too quickly)
 
 `worker_thread`:
 - (12/4) added macros to toggle pbft and raft
@@ -124,7 +125,29 @@ txn table - pool of all active transaction managers on the node
 `msg_queue`: 
 - (12/10) updated msq_queue to send AppendEntriesRPCs and AppendEntriesResponse
 
-### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
+#### Useful Commands
+
+`docker exec -it <repilica id> bash`        starts a bash in docker replica (eg s1, c1, etc.)
+
+In container:
+
+`./rundb -nid#`                 runs replica with nid # (eg nid0, nid1, etc) needs to match format
+                                s1 -> nid0, s<X> -> nid<X>, c1 -> nid<X+1>
+`./runcl -nid#`                 runs client with nid #, needs to match format and be in correct 
+                                container
+
+gdb
+`gdb --args ./rundb nid0`
+`(gdb) b <function name>`
+`(gdb) run -nid0`
+`(gdb) layout src`      shows where you are in code
+`(gdb) p <var>`         prints var
+`(gdb) c`               continue until next breakpoint
+`(gdb) n`               step over
+`(gdb) s`               step in
+
+
+#### Notes from [Sajjad's ResilientDB Tutorial](https://www.youtube.com/watch?v=cBn142Uz_J0&feature=youtu.be)
 Everything we need is probably in `system` and `client` folders
 
 

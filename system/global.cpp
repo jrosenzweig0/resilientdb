@@ -273,7 +273,7 @@ uint64_t get_lastApplied() {
  * for each server, index of the next log entry to send to that server 
  * (initialized to leader last log index + 1)
  */
-uint64_t nextIndex[NODE_CNT] = {0};
+uint64_t nextIndex[NODE_CNT] = {1};
 std::mutex nextIndMTX;
 
 /* Increments the index of the next log entry to send to node */

@@ -25,7 +25,7 @@
 #define WARMUP 0 
 #define WORKLOAD YCSB 
 #define PRT_LAT_DISTR false 
-#define STATS_ENABLE true 
+#define STATS_ENABLE false
 #define TIME_ENABLE true 
 #define TIME_PROF_ENABLE false 
 #define FIN_BY_TIME true 
@@ -146,7 +146,7 @@
 #define PARTITIONED 0 
 #define REPLICATED 1 
 // To select the amount of time to warmup and run. 
-#define DONE_TIMER 2 * 60 * BILLION 
+#define DONE_TIMER 60 * 60 * BILLION 
 #define WARMUP_TIMER 1 * 60 * BILLION 
 // Select the consensus algorithm to run.  
 #define CONSENSUS RAFT

@@ -123,27 +123,29 @@ docker exec s1 make clean
 docker exec s1 make
 printf "${GREEN}ResilientDB is compiled successfully${NC}\n"
 
-printf "\nRunning ResilientDB replicas...\n"
-mkdir -p results
-for i in $(seq 1 $replicas); do
-    echo "rep $i"
-    docker exec s${i} pkill rundb
-    docker exec s${i} ./rundb -nid$((i - 1)) >results/s${replicas}_c${clients}_results_PBFT_b100_run0_node$((i - 1)).out &
-done
-printf "${GREEN}Replicas started successfully${NC}\n"
+# do not automatically run processes for debugging
 
-printf "\nRunning ResilientDB clients...\n"
-cl=$replicas
-for i in $(seq 1 $clients); do
-    echo "cl $i"
-    docker exec c${i} pkill runcl
-    docker exec c${i} ./runcl -nid$((i + replicas - 1)) >results/s${replicas}_c${clients}_results_PBFT_b100_run0_node$((i + replicas - 1)).out &
-done
-printf "${GREEN}Clients started successfully${NC}\n"
+# printf "\nRunning ResilientDB replicas...\n"
+# mkdir -p results
+# for i in $(seq 1 $replicas); do
+#     echo "rep $i"
+#     docker exec s${i} pkill rundb
+#     docker exec s${i} ./rundb -nid$((i - 1)) >results/s${replicas}_c${clients}_results_PBFT_b100_run0_node$((i - 1)).out &
+# done
+# printf "${GREEN}Replicas started successfully${NC}\n"
 
-wait
+# printf "\nRunning ResilientDB clients...\n"
+# cl=$replicas
+# for i in $(seq 1 $clients); do
+#     echo "cl $i"
+#     docker exec c${i} pkill runcl
+#     docker exec c${i} ./runcl -nid$((i + replicas - 1)) >results/s${replicas}_c${clients}_results_PBFT_b100_run0_node$((i + replicas - 1)).out &
+# done
+# printf "${GREEN}Clients started successfully${NC}\n"
 
-scripts/result.sh ${replicas} ${clients} PBFT 100 0 >res.out
-scripts/result_colorized.sh ${replicas} ${clients} PBFT 100 0
-# rm results/*
-printf "${GREEN}Code Ran successfully${NC} ---> res.out\n"
+# wait
+
+# scripts/result.sh ${replicas} ${clients} PBFT 100 0 >res.out
+# scripts/result_colorized.sh ${replicas} ${clients} PBFT 100 0
+# # rm results/*
+# printf "${GREEN}Code Ran successfully${NC} ---> res.out\n"

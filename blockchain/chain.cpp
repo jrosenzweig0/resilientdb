@@ -131,6 +131,20 @@ void BChain::remove_block(uint64_t tid)
 // Some blockchain functions that will be helpful for the raft implementation
 #if CONSENSUS == RAFT
 
+/* Prints the BlockChain to stdout */
+void BChain::print_chain() {
+	// BatchRequests *breq;
+
+	chainLock.lock();
+	for (uint64_t i = 0; i < bchain_map.size(); i++) {
+		cout << "[" << i << " : term " << bchain_map[i]->get_term() << "] - ";
+				// << " : " << (bchain_map[i]->get_batch_request())->hash;
+	}
+	chainLock.unlock();
+	cout << "\n\n";
+	fflush(stdout);
+}
+
 /* Removes the last block currently on the blockchain */
 void BChain::remove_last() {
 	BChainStruct *blk;

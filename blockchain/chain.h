@@ -44,6 +44,7 @@ public:
 
 #if CONSENSUS == RAFT
 
+	void print_chain();
 	void remove_last();
 	void remove_since_index(uint64_t i); // removes all blocks from index i to end
 	BatchRequests *get_batch_at_index(uint64_t i);

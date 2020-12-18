@@ -1260,7 +1260,9 @@ void AppendEntriesRPC::copy_from_buf(char *buf)
 	COPY_VAL(numEntries, buf, ptr);
 
 	for (uint i = 0; i < numEntries; i++) {
-		entries[i]->copy_from_buf(&buf[ptr]);
+		BatchRequests *breq = (BatchRequests *) Message::create_message(BATCH_REQ);
+		entries.push_back(breq);
+		entries[i]->copy_from_buf(&(buf[ptr]));
 		ptr += entries[i]->get_size();
 	}
 
@@ -1281,11 +1283,20 @@ void AppendEntriesRPC::copy_to_buf(char *buf)
 	COPY_BUF(buf, numEntries, ptr);
 
 	for (uint i = 0; i < numEntries; i++) {
-		entries[i]->copy_to_buf(&buf[ptr]);
+		entries[i]->copy_to_buf(&(buf[ptr]));
 		ptr += entries[i]->get_size();
 	}
 
 	COPY_BUF(buf, leaderCommit, ptr);
+
+	// print buffer
+	// cout << "\nCopied to buffer:\n**************************\n";
+	// for (uint i = 0; i < ptr; i++) {
+	// 	cout << (char) buf[i];
+	// 	fflush(stdout);
+	// }
+	// cout << "\n**************************\n";
+	// fflush(stdout);
 
 	assert(ptr == get_size());
 }
@@ -1353,6 +1364,7 @@ uint64_t AppendEntriesResponse::get_size() {
 	uint64_t size = Message::mget_size();
 	size += sizeof(term);
 	size += sizeof(success);
+	size += sizeof(matchIndex);
 	return size;
 }
 
@@ -1362,6 +1374,7 @@ void AppendEntriesResponse::copy_from_buf(char *buf) {
 	uint64_t ptr = Message::mget_size();
 	COPY_VAL(term, buf, ptr);
 	COPY_VAL(success, buf, ptr);
+	COPY_VAL(matchIndex, buf, ptr);
 
 	assert(ptr == get_size());
 }
@@ -1372,6 +1385,7 @@ void AppendEntriesResponse::copy_to_buf(char *buf) {
 	uint64_t ptr = Message::mget_size();
 	COPY_BUF(buf, term, ptr);
 	COPY_BUF(buf, success, ptr);
+	COPY_BUF(buf, matchIndex, ptr);
 	assert(ptr == get_size());
 }
 

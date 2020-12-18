@@ -26,7 +26,8 @@
  */
 RC WorkerThread::append_entries() {
 
-    // 
+    cout << "\nAppendEntriesRPC\n";
+    fflush(stdout);
 
     assert(g_node_id == get_current_view(get_thd_id()));
     // create the append entries rpc message for each node
@@ -76,16 +77,10 @@ RC WorkerThread::append_entries() {
  */
 RC WorkerThread::process_append_entries(Message *msg) {
 
+    cout << "\nReceived AppendEntriesRPC\n";
+    fflush(stdout);
+
     // TODO: reset timer
-    // if lastApplied < commitIndex, execute transactions until caught up
-    uint64_t lA;
-    while (get_commitIndex() > get_lastApplied()) {
-        inc_lastApplied();
-        lA = get_lastApplied();
-        txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
-        txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
-        send_execute_msg();
-    }
 
     AppendEntriesRPC *aerpc = (AppendEntriesRPC *)msg;
 
@@ -100,13 +95,22 @@ RC WorkerThread::process_append_entries(Message *msg) {
     AppendEntriesResponse *aer = (AppendEntriesResponse *)amsg;
     aer->init();
 
+    // debugging
+    cout << "Parameters:" \
+            << "\nterm: " << aerpc->term \
+            << "\nleaderId: " << aerpc->leaderId \
+            << "\nprevLogIndex: " << aerpc->prevLogIndex \
+            << "\nnumEntries: " << aerpc->numEntries \
+            << "\nleaderCommit: " << aerpc->leaderCommit;
+    fflush(stdout);
+
     // reply false if term < currentTerm
     if (aerpc->term < currentTerm) {
         aer->success = false;
     }
 
     // reply false if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
-    else if (!BlockChain->check_term_match_at(aerpc->prevLogIndex, aerpc->prevLogTerm)) {
+    else if (BlockChain->get_length() > 0 && !BlockChain->check_term_match_at(aerpc->prevLogIndex, aerpc->prevLogTerm)) {
         aer->success = false;
     }
 
@@ -116,6 +120,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
             BlockChain->remove_since_index(aerpc->prevLogIndex + 1);
         }
 
+        // need to put this in blockchain since threads do not guarantee order
         // add all batch requests in entries to the blockchain (not committed)
         for (uint64_t i = 0; i < aerpc->entries.size(); i++) {
             // pointer to batch request
@@ -131,11 +136,30 @@ RC WorkerThread::process_append_entries(Message *msg) {
             BlockChain->add_block(txn_man);
         }
 
+        // send the matchIndex back to primary (primary might have added to chain since last call)
+        aer->matchIndex = BlockChain->get_length() - 1;
 
         if (aerpc->leaderCommit > get_commitIndex()) {
             set_commitIndex(std::min(aerpc->leaderCommit, BlockChain->get_length() - 1));
         }
     }
+
+    // if lastApplied < commitIndex, execute transactions until caught up
+    uint64_t lA;
+    while (get_commitIndex() > get_lastApplied()) {
+        inc_lastApplied();
+        lA = get_lastApplied();
+        txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
+        txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
+        send_execute_msg();
+    }
+
+    // debugging
+    cout << "State:" \
+        << "\nTerm: " << get_currentTerm() \
+        << "\nBlockchain Length: " << BlockChain->get_length() \
+        << "\nBlockchain:\n";
+    BlockChain->print_chain();
 
     // sign and send AppendEntriesResponse to leader
     vector<string> emptyvec;
@@ -163,6 +187,9 @@ RC WorkerThread::process_append_entries(Message *msg) {
  */
 RC WorkerThread::process_append_entries_resp(Message *msg) {
 
+    cout << "received AppendEntriesResponse!\n";
+    fflush(stdout);
+
     AppendEntriesResponse *aer = (AppendEntriesResponse *) msg;
 
     // only the leader calls this function
@@ -176,8 +203,12 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
 
     if (aer->success) {
         // if success, 
-        set_node_matchIndex(node, BlockChain->get_length()-1);
-        set_node_nextIndex(node, BlockChain->get_length());
+        cout << "Append Entries Success!\n";
+        fflush(stdout);
+        // set_node_matchIndex(node, BlockChain->get_length()-1);
+        // set_node_nextIndex(node, BlockChain->get_length());
+        set_node_matchIndex(node, aer->matchIndex);
+        set_node_nextIndex(node, aer->matchIndex + 1);
     } else {
         decr_node_nextIndex(node);
     }
@@ -197,6 +228,16 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
         txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
         send_execute_msg();
     }
+
+    // debugging
+    cout << "\nThread: " << get_thd_id() << "\n";
+    cout << "Chain Length: " << BlockChain->get_length() << "\n";
+    cout << "Commit Index: " << get_commitIndex() << "\n";
+    for (uint i = 0; i < g_node_cnt; i++) {
+        cout << i << " nextIndex: " << get_node_nextIndex(i) << "\n";
+        cout << i << " matchIndex: " << get_node_matchIndex(i) << "\n";
+    }
+    fflush(stdout);
 
     return RCOK;
 }
@@ -329,6 +370,10 @@ RC WorkerThread::process_client_batch(Message *msg)
 
     // add the resulting batch request to the log
     BlockChain->add_block(txn_man);
+
+    // debugging
+    // BlockChain->print_chain();
+    // cout << "\nChain Length: " << BlockChain->get_length() << "\n";
 
     // broadcast AppendEntriesRPC
     append_entries();
