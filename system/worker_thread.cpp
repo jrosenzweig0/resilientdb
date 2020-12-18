@@ -706,6 +706,7 @@ RC WorkerThread::run()
             continue;
         }
 
+#if CONSENSUS == PBFT
         // Based on the type of the message, we try acquiring the transaction manager.
         if (msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
         {
@@ -723,6 +724,7 @@ RC WorkerThread::run()
             }
             txn_man->register_thread(this);
         }
+#endif
 
         // Th execut-thread only picks up the next batch for execution.
         if (msg->rtype == EXECUTE_MSG)

@@ -155,8 +155,9 @@ RC WorkerThread::process_append_entries(Message *msg) {
     }
 
     // debugging
-    cout << "State:" \
+    cout << "\n\nState:" \
         << "\nTerm: " << get_currentTerm() \
+        << "\ncommitIndex: " << get_commitIndex() \
         << "\nBlockchain Length: " << BlockChain->get_length() \
         << "\nBlockchain:\n";
     BlockChain->print_chain();
@@ -170,6 +171,9 @@ RC WorkerThread::process_append_entries(Message *msg) {
     vector<uint64_t> dest = nodes_to_send(aerpc->leaderId, aerpc->leaderId+1);
     msg_queue.enqueue(get_thd_id(), aer, emptyvec, dest);
     emptyvec.clear();
+
+    cout << "\n Response Sent!\n";
+    fflush(stdout);
 
     return RCOK;
 }
@@ -187,7 +191,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
  */
 RC WorkerThread::process_append_entries_resp(Message *msg) {
 
-    cout << "received AppendEntriesResponse!\n";
+    cout << "\nreceived AppendEntriesResponse!\n";
     fflush(stdout);
 
     AppendEntriesResponse *aer = (AppendEntriesResponse *) msg;
@@ -209,7 +213,7 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
         // set_node_nextIndex(node, BlockChain->get_length());
         set_node_matchIndex(node, aer->matchIndex);
         set_node_nextIndex(node, aer->matchIndex + 1);
-    } else {
+    } else if (get_node_nextIndex(node) > 0) {
         decr_node_nextIndex(node);
     }
 
