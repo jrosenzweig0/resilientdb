@@ -365,7 +365,7 @@ public:
     uint64_t prevLogTerm;
     uint64_t numEntries;
     std::vector<BatchRequests *> entries; // may need to change this
-    uint64_t leaderCommit;
+    int64_t leaderCommit;
 };
 
 /*
@@ -389,7 +389,7 @@ public:
     // for protocol
     uint64_t term;
     bool success;
-    uint64_t matchIndex;
+    int64_t matchIndex;
 };
 
 #endif

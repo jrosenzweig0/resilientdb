@@ -229,8 +229,8 @@ std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
 }
 
 /* Get the current length of the blockchain */
-uint64_t BChain::get_length() {
-	uint64_t val;
+int64_t BChain::get_length() {
+	int64_t val;
 	chainLock.lock();
 	val = bchain_map.size();
 	chainLock.unlock();
