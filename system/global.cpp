@@ -170,7 +170,7 @@ void inc_next_index()
 	gnextMTX.lock();
 	g_next_index++;
 	gnextMTX.unlock();
-	inc_node_nextIndex(g_node_id);
+	// inc_node_nextIndex(g_node_id);
 }
 
 uint64_t curr_next_index()
@@ -338,7 +338,9 @@ void set_node_nextIndex(uint64_t node, uint64_t ind) {
 void init_nextIndex_arr() {
 	nextIndMTX.lock();
 	for (uint64_t i = 0; i < g_node_cnt; i++) {
-		nextIndex[i] = g_next_index;
+		if (i != g_node_id) {
+			nextIndex[i] = nextIndex[g_node_id];
+		}
 	}
 	nextIndMTX.unlock();
 }

@@ -149,6 +149,17 @@ RC WorkerThread::process_append_entries(Message *msg) {
         aer->success = false;
     }
 
+    // handle heartbeat with no data (might have commit information though)
+    else if (!aerpc->numEntries) {
+        // send the matchIndex back to primary (primary might have added to chain since last call)
+        aer->matchIndex = aerpc->prevLogIndex + aerpc->numEntries;
+
+        if (aerpc->leaderCommit > get_commitIndex()) {
+            set_commitIndex(std::min(aerpc->leaderCommit, BlockChain->get_length() - 1));
+        }
+    }
+
+    // handle entries to append to chain
     else {
         // If an existing enty conflicts with a new one, delete the existing entry and all that follow it
         if (!BlockChain->check_term_match_at(aerpc->prevLogIndex + 1, aerpc->entries[0]->term)) {
@@ -186,6 +197,9 @@ RC WorkerThread::process_append_entries(Message *msg) {
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
         txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
+        txn_man->txn_ready = 1;
+        cout << "Committing...\n";
+        fflush(stdout);
         send_execute_msg();
     }
 
@@ -194,6 +208,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
         << "\nTerm: " << get_currentTerm() \
         << "\nmatchIndex: " << aer->matchIndex \
         << "\ncommitIndex: " << get_commitIndex() \
+        << "\nlastApplied: " << get_lastApplied() \
         << "\nBlockchain Length: " << BlockChain->get_length() \
         << "\nBlockchain:\n";
     BlockChain->print_chain();
@@ -265,6 +280,8 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
     // if lastApplied < commitIndex, execute transactions until caught up
     uint64_t lA;
     while (get_commitIndex() > get_lastApplied()) {
+        cout << "Committing Transactions...\n";
+        fflush(stdout);
         inc_lastApplied();
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
@@ -418,6 +435,8 @@ RC WorkerThread::process_client_batch(Message *msg)
 
     // add the resulting batch request to the log
     BlockChain->add_block(txn_man);
+    // inc_node_nextIndex(g_node_id);
+    set_node_nextIndex(g_node_id, BlockChain->get_length());
 
     // debugging
     // BlockChain->print_chain();

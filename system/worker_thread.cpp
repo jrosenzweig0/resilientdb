@@ -706,7 +706,7 @@ RC WorkerThread::run()
             continue;
         }
 
-// #if CONSENSUS == PBFT
+#if CONSENSUS == PBFT
         // Based on the type of the message, we try acquiring the transaction manager.
         if (msg->rtype != RAFT_AE_RPC && msg->rtype != RAFT_AE_RESP && msg->rtype != BATCH_REQ && msg->rtype != CL_BATCH && msg->rtype != EXECUTE_MSG)
         {
@@ -724,11 +724,12 @@ RC WorkerThread::run()
             }
             txn_man->register_thread(this);
         }
-// #endif
+#endif
 
         // Th execut-thread only picks up the next batch for execution.
         if (msg->rtype == EXECUTE_MSG)
         {
+#if CONSENSUS == PBFT
             if (msg->txn_id != get_expectedExecuteCount())
             {
                 // Return to work queue.
@@ -736,10 +737,21 @@ RC WorkerThread::run()
                 work_queue.enqueue(get_thd_id(), msg, true);
                 continue;
             }
+#endif
+#if CONSENSUS == RAFT
+            agCount++;
+            work_queue.enqueue(get_thd_id(), msg, true);
+            continue;
+#endif
         }
 
+        if (msg->rtype == EXECUTE_MSG) {
+            cout << "EXECUTE MSG found!\n";
+            fflush(stdout);
+        }
         process(msg);
 
+#if CONSENSUS == PBFT
         ready_starttime = get_sys_clock();
         if (txn_man)
         {
@@ -751,6 +763,7 @@ RC WorkerThread::run()
                 assert(ready);
             }
         }
+#endif
 
         // delete message
         ready_starttime = get_sys_clock();
@@ -852,7 +865,12 @@ void WorkerThread::init_txn_man(YCSBClientQueryMessage *clqry)
 void WorkerThread::send_execute_msg()
 {
     Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
+// #if CONSENUS == PBFT
     work_queue.enqueue(get_thd_id(), tmsg, false);
+// #endif
+// #if CONSENUS == RAFT
+//     work_queue.enqueue(get_thd_id(), tmsg, false);
+// #endif
 }
 
 /**
@@ -868,8 +886,8 @@ void WorkerThread::send_execute_msg()
  */
 RC WorkerThread::process_execute_msg(Message *msg)
 {
-    //cout << "EXECUTE " << msg->txn_id << " :: " << get_thd_id() <<"\n";
-    //fflush(stdout);
+    cout << "EXECUTE " << msg->txn_id << " :: " << get_thd_id() << "\n";
+    fflush(stdout);
 
     uint64_t ctime = get_sys_clock();
 
@@ -970,6 +988,9 @@ RC WorkerThread::process_execute_msg(Message *msg)
     // in raft, only the leader sends a client response
     if (g_node_id == get_current_view(get_thd_id())) {
 #endif
+
+    cout << "Thread " << get_thd_id() << " Sending Client Response...\n";
+    fflush(stdout);
 
     vector<string> emptyvec;
     vector<uint64_t> dest;
