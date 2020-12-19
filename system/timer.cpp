@@ -16,12 +16,26 @@ Message *Timer::get_msg()
 {
 	return msg;
 }
+int Timer::get_timeLeft_raft()
+{
+	return timeLeft;
+}
+void Timer::set_timeLeft_raft(int time)
+{
+	timeLeft = time;
+}
+void Timer::reset_timer_raft()
+{
+	timeLeft = rand() % 5000000000 + 5000000000;;
+}
 
 void Timer::set_data(uint64_t tst, string hsh, Message *cqry)
 {
 	timestamp = tst;
 	hash = hsh;
 	msg = cqry;
+	timeLeft = rand() % 5000000000 + 5000000000;
+	//Raft
 }
 
 /************************************/
@@ -80,7 +94,7 @@ bool ServerTimer::checkTimer()
 	for (uint64_t i = 0; i < txn_map.size(); i++)
 	{
 		tmap = txn_map[i];
-		if (get_sys_clock() - tmap->get_timestamp() < EXE_TIMEOUT)
+		if (get_sys_clock() - tmap->get_timestamp() < timeLeft)//EXE_TIMEOUT)//Raft: compare to randomly set timer instead of EXE_TIMEOUT timeLeft
 		{
 			break;
 		}

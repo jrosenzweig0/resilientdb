@@ -8,14 +8,19 @@ class Timer
 	uint64_t timestamp;
 	string hash;
 	Message *msg;
+	int timeLeft;
+	//Raft
 
 public:
 	uint64_t get_timestamp();
 	string get_hash();
 	Message *get_msg();
+	int Timer::get_timeLeft_raft();
+	void Timer::set_timeLeft_raft(int time);
+	void Timer::reset_timer_raft();
 	void set_data(uint64_t tst, string hsh, Message *cqry);
 };
-
+void Timer::reset_timer_raft();
 // Timer for servers
 class ServerTimer
 {

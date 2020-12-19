@@ -285,7 +285,7 @@ This requires sending a view change message to each replica.
 void WorkerThread::check_for_timeout()
 {
     if (g_node_id != get_current_view(get_thd_id()) &&
-        server_timer->checkTimer())
+        server_timer->checkTimer())//pass timer into checkTimer() raft
     {
         // Pause the timer to avoid causing further view changes.
         server_timer->pauseTimer();
@@ -335,6 +335,13 @@ void WorkerThread::check_for_timeout()
 
         cout << "Sent from here" << endl;
         fflush(stdout);
+
+        /*
+        Raft: reset timer to time that's halfway to full
+        */
+        //timeLeft = rand() % 5000000000 + 5000000000;
+        //set_timeLeft_raft(rand() % 5000000000 + 5000000000);
+        reset_timer_raft();
     }
 }
 
@@ -649,6 +656,16 @@ RC WorkerThread::run()
 
     uint64_t agCount = 0, ready_starttime, idle_starttime = 0;
 
+    /*
+    Raft:
+    Set timer to be random halfway to full
+    
+
+    */
+    //timeLeft = rand() % 5000000000 + 5000000000;
+    //set_timeLeft_raft()
+    //set_timeLeft_raft(rand() % 5000000000 + 5000000000);
+    reset_timer_raft();
     // Setting batch (only relevant for batching threads).
     next_set = 0;
 
