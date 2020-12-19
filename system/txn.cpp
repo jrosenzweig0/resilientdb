@@ -125,6 +125,18 @@ void Transaction::release(uint64_t pool_id)
     DEBUG("Transaction release\n");
 }
 
+/******************** TXN MANAGER ****************************/
+
+/***** RAFT STUFF *****/
+
+RC TxnManager::run_txn() {
+    cout << "run txn: " << get_txn_id() << "...\n";
+    fflush(stdout);
+    return RCOK;
+}
+
+/**********************/
+
 void TxnManager::init(uint64_t pool_id, Workload *h_wl)
 {
     if (!txn)

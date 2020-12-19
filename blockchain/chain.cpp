@@ -137,7 +137,8 @@ void BChain::print_chain() {
 
 	chainLock.lock();
 	for (uint64_t i = 0; i < bchain_map.size(); i++) {
-		cout << "[" << i << " : term " << bchain_map[i]->get_term() << "] - ";
+		cout << "[" << i << " : term " << bchain_map[i]->get_term() \
+				<< " : txn id " << bchain_map[i]->get_txn_id() << "] - ";
 				// << " : " << (bchain_map[i]->get_batch_request())->hash;
 	}
 	chainLock.unlock();

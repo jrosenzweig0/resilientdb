@@ -202,7 +202,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
         fflush(stdout);
         // send_execute_msg();
         Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
-        work_queue.enqueue(get_thd_id(), tmsg, false);
+        work_queue.enqueue(get_thd_id(), tmsg, true);
     }
 
     // debugging
@@ -282,16 +282,18 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
     // if lastApplied < commitIndex, execute transactions until caught up
     uint64_t lA;
     while (get_commitIndex() > get_lastApplied()) {
-        cout << "Committing Transactions...\n";
-        fflush(stdout);
+        // cout << "Committing Transactions...\n";
+        // fflush(stdout);
         inc_lastApplied();
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
+        cout << "Commiting txn id: " << txn_man->get_txn_id() << "\n";
+        fflush(stdout);
         // txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
-        txn_man->txn_ready = 1;
+        txn_man->txn_ready = g_node_cnt;
         // send_execute_msg();
         Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
-        work_queue.enqueue(get_thd_id(), tmsg, false);
+        work_queue.enqueue(get_thd_id(), tmsg, true);
     }
 
     // debugging
@@ -438,6 +440,8 @@ RC WorkerThread::process_client_batch(Message *msg)
     /**********************************************/
 
     // add the resulting batch request to the log
+    cout << "Adding block with txn id: " << txn_man->get_txn_id() << "\n";
+    fflush(stdout);
     BlockChain->add_block(txn_man);
     // inc_node_nextIndex(g_node_id);
     set_node_nextIndex(g_node_id, BlockChain->get_length());

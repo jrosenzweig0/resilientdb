@@ -740,8 +740,8 @@ RC WorkerThread::run()
 #endif
 #if CONSENSUS == RAFT
             agCount++;
-            work_queue.enqueue(get_thd_id(), msg, true);
-            continue;
+            // work_queue.enqueue(get_thd_id(), msg, true);
+            // continue;
 #endif
         }
 
