@@ -200,7 +200,9 @@ RC WorkerThread::process_append_entries(Message *msg) {
         txn_man->txn_ready = 1;
         cout << "Committing...\n";
         fflush(stdout);
-        send_execute_msg();
+        // send_execute_msg();
+        Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
+        work_queue.enqueue(get_thd_id(), tmsg, false);
     }
 
     // debugging
@@ -285,9 +287,11 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
         inc_lastApplied();
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
-        txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
+        // txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
         txn_man->txn_ready = 1;
-        send_execute_msg();
+        // send_execute_msg();
+        Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
+        work_queue.enqueue(get_thd_id(), tmsg, false);
     }
 
     // debugging

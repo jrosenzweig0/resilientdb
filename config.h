@@ -146,7 +146,7 @@
 #define PARTITIONED 0 
 #define REPLICATED 1 
 // To select the amount of time to warmup and run. 
-#define DONE_TIMER 1 * 60 * BILLION 
+#define DONE_TIMER 30 * 60 * BILLION 
 #define WARMUP_TIMER 1 * 60 * BILLION 
 // Select the consensus algorithm to run.  
 #define CONSENSUS RAFT
