@@ -192,8 +192,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
 
     // if lastApplied < commitIndex, execute transactions until caught up
     uint64_t lA;
-    while (get_commitIndex() > get_lastApplied()) {
-        inc_lastApplied();
+    while (get_commitIndex() >= get_lastApplied()) {
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
         txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
@@ -203,6 +202,7 @@ RC WorkerThread::process_append_entries(Message *msg) {
         // send_execute_msg();
         Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
         work_queue.enqueue(get_thd_id(), tmsg, false);
+        inc_lastApplied();
     }
 
     // debugging
@@ -281,10 +281,9 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
 
     // if lastApplied < commitIndex, execute transactions until caught up
     uint64_t lA;
-    while (get_commitIndex() > get_lastApplied()) {
+    while (get_commitIndex() >= get_lastApplied()) {
         cout << "Committing Transactions...\n";
         fflush(stdout);
-        inc_lastApplied();
         lA = get_lastApplied();
         txn_man = get_transaction_manager(BlockChain->get_txn_id_at(lA), 0);
         // txn_man->set_primarybatch(BlockChain->get_batch_at_index(lA));
@@ -292,6 +291,7 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
         // send_execute_msg();
         Message *tmsg = Message::create_message(txn_man, EXECUTE_MSG);
         work_queue.enqueue(get_thd_id(), tmsg, false);
+        inc_lastApplied();
     }
 
     // debugging
