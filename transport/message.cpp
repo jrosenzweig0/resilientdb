@@ -1260,7 +1260,8 @@ void AppendEntriesRPC::copy_from_buf(char *buf)
 	COPY_VAL(numEntries, buf, ptr);
 
 	for (uint i = 0; i < numEntries; i++) {
-		BatchRequests *breq = (BatchRequests *) Message::create_message(BATCH_REQ);
+		BatchRequests *breq = (BatchRequests *)mem_allocator.alloc(sizeof(BatchRequests));
+		breq = (BatchRequests *) Message::create_message(BATCH_REQ);
 		entries.push_back(breq);
 		entries[i]->copy_from_buf(&(buf[ptr]));
 		ptr += entries[i]->get_size();

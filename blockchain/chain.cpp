@@ -212,13 +212,13 @@ BatchRequests *BChain::get_batch_at_index(uint64_t i) {
 /* Gets all the blocks since the given index until the end of the blockchain 
 	and returns a vector of the batchrequests stored in them 
 	(used by primary to forward committed transactions to workers) */
-std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start) {
+std::vector<BatchRequests *> BChain::get_batches_since_index(uint64_t start, uint64_t end) {
 	std::vector<BatchRequests *> batches;
 
 	chainLock.lock();
 	if (start < bchain_map.size()) 
 	{
-		for (uint64_t i = start; i < bchain_map.size(); i++)
+		for (uint64_t i = start; i < end; i++)
 		{
 			batches.push_back(bchain_map[i]->get_batch_request());
 		}

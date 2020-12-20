@@ -658,6 +658,15 @@ RC WorkerThread::run()
         heartbeat();
         progress_stats();
 
+#if TIMER_ON
+        if (g_node_id == get_current_view(get_thd_id()) && get_thd_id() == 0 && leader_timer->checkTimer()) {
+            cout << "Sending AppendEntriesRPC...\n";
+            fflush(stdout);
+            append_entries();
+            leader_timer->startTimer();
+        }
+#endif
+
 #if VIEW_CHANGES
         // Thread 0 continously monitors the timer for each batch.
         if (get_thd_id() == 0)
@@ -753,13 +762,6 @@ RC WorkerThread::run()
             fflush(stdout);
         }
         process(msg);
-
-#if TIMER_ON
-        if (leader_timer->checkTimer()) {
-            append_entries();
-            leader_timer->startTimer();
-        }
-#endif
 
 #if CONSENSUS == PBFT
         ready_starttime = get_sys_clock();
