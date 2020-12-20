@@ -328,14 +328,16 @@ extern std::mutex cTermMTX;
 void inc_currentTerm();
 uint64_t get_currentTerm();
 
+/* NOTE: there is a mismatch for indices here that will break arrays larger than 2^32 */
+
 // Volatile State 
-extern uint64_t commitIndex;
+extern int64_t commitIndex;
 extern std::mutex commitIndMTX;
 void inc_commitIndex();
 uint64_t get_commitIndex();
 void set_commitIndex(uint64_t i);
 
-extern uint64_t lastApplied;
+extern int64_t lastApplied;
 extern std::mutex lastAppMTX;
 void inc_lastApplied();
 uint64_t get_lastApplied();

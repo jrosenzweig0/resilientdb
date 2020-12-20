@@ -133,10 +133,13 @@ int main(int argc, char *argv[])
 #if CONSENSUS == RAFT
     election_timer = new ElectionTimer();
     election_timer->init();
+    election_timer->startTimer();
 
     leader_timer = new LeaderTimer();
     leader_timer->init();
     if (g_node_id == 0) {   // TODO: don't hardcode the leader
+        cout << "Starting Leader Timer\n";
+        fflush(stdout);
         leader_timer->startTimer();
     }
 #endif

@@ -230,7 +230,7 @@ uint64_t get_currentTerm() {
  * index of highest log entry known to be committed locally
  * (initialized to 0, increases monotonically)
  */
-uint64_t commitIndex = 0;
+int64_t commitIndex = -1;
 std::mutex commitIndMTX;
 
 /* Increments index of highest log entry known to be committed */
@@ -241,8 +241,8 @@ void inc_commitIndex() {
 }
 
 /* Get index of highest log entry known to be committed */
-uint64_t get_commitIndex() {
-	uint64_t val;
+int64_t get_commitIndex() {
+	int64_t val;
 	commitIndMTX.lock();
 	val = commitIndex;
 	commitIndMTX.unlock();
@@ -250,7 +250,7 @@ uint64_t get_commitIndex() {
 }
 
 /* Set commitIndex (only do if in follower, strictly increasing) */
-void set_commitIndex(uint64_t i) {
+void set_commitIndex(int64_t i) {
 	commitIndMTX.lock();
 	if (commitIndex < i) {
 		commitIndex = i;
@@ -263,7 +263,7 @@ void set_commitIndex(uint64_t i) {
  * index of highest log entry applied to state machine
  * (initialized to 0, increases monotonically)
  */
-uint64_t lastApplied = 0;
+int64_t lastApplied = -1;
 std::mutex lastAppMTX;
 
 /* Increments index of highest log entry applied to state machine*/
@@ -274,8 +274,8 @@ void inc_lastApplied() {
 }
 
 /* Get index of highest log entry applied to state machine */
-uint64_t get_lastApplied() {
-	uint64_t val;
+int64_t get_lastApplied() {
+	int64_t val;
 	lastAppMTX.lock();
 	val = lastApplied;
 	lastAppMTX.unlock();
@@ -290,7 +290,7 @@ uint64_t get_lastApplied() {
  * for each server, index of the next log entry to send to that server 
  * (initialized to leader last log index + 1)
  */
-uint64_t nextIndex[NODE_CNT] = {0};
+int64_t nextIndex[NODE_CNT] = {0};
 std::mutex nextIndMTX;
 
 /* Increments the index of the next log entry to send to node */
@@ -313,8 +313,8 @@ void decr_node_nextIndex(uint64_t node) {
 
 /* Gets the index of the next log entry to send to node 
 	Returns UINT64_MAX if node invalid */
-uint64_t get_node_nextIndex(uint64_t node) {
-	uint64_t val = UINT64_MAX;
+int64_t get_node_nextIndex(uint64_t node) {
+	int64_t val = UINT64_MAX;
 	if (node < g_node_cnt) {
 		nextIndMTX.lock();
 		val = nextIndex[node];
@@ -324,7 +324,7 @@ uint64_t get_node_nextIndex(uint64_t node) {
 }
 
 /* Set the index of the next log entry to send to node */
-void set_node_nextIndex(uint64_t node, uint64_t ind) {
+void set_node_nextIndex(uint64_t node, int64_t ind) {
 	if (node < g_node_cnt) {
 		nextIndMTX.lock();
 		if (nextIndex[node] < ind) {
