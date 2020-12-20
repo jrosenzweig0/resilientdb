@@ -140,7 +140,7 @@
 #define STAT_ARR_SIZE 1024 
 #define PROG_TIMER 10 * BILLION 
 #define SEQ_BATCH_TIMER 5 * 1 * MILLION 
-#define AE_PERIOD_MS 10000
+#define AE_PERIOD_MS 1000
 #define AE_PERIOD AE_PERIOD_MS * 1 * MILLION // ns
 #define SEED 0 
 #define SHMEM_ENV false 
@@ -148,7 +148,7 @@
 #define PARTITIONED 0 
 #define REPLICATED 1 
 // To select the amount of time to warmup and run. time in nanoseconds
-#define DONE_TIMER 2 * 60 * BILLION 
+#define DONE_TIMER 1 * 60 * BILLION 
 #define WARMUP_TIMER 1 * 60 * BILLION 
 // Select the consensus algorithm to run.  
 #define CONSENSUS RAFT

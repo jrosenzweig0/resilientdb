@@ -41,9 +41,7 @@ void LeaderTimer::startTimer() {
 bool LeaderTimer::checkTimer() {
 	bool expired = false;
 	tlock.lock();
-	if (get_sys_clock() - timer->get_timestamp() > period) {
-		cout << "LeaderTimer expired\n";
-		fflush(stdout);
+	if (get_sys_clock() - timer->get_timestamp() < period) {
 		expired = true;
 	}
 	tlock.unlock();
@@ -67,7 +65,7 @@ void ElectionTimer::init() {
 
 void ElectionTimer::startTimer() {
 	tlock.lock();
-	timeout = 2 * AE_PERIOD + (this->dist(mt) * 1 * MILLION);
+	timeout = AE_PERIOD + (this->dist(mt) * 1 * MILLION);
 	timer->set_data(get_sys_clock(), "", nullptr);
 	tlock.unlock();
 }
@@ -75,7 +73,7 @@ void ElectionTimer::startTimer() {
 bool ElectionTimer::checkTimer() {
 	bool expired = false;
 	tlock.lock();
-	if (get_sys_clock() - timer->get_timestamp() > timeout) {
+	if (get_sys_clock() - timer->get_timestamp() < timeout) {
 		expired = true;
 	}
 	tlock.unlock();
