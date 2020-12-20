@@ -739,9 +739,12 @@ RC WorkerThread::run()
             }
 #endif
 #if CONSENSUS == RAFT
-            agCount++;
-            // work_queue.enqueue(get_thd_id(), msg, true);
-            // continue;
+            if (msg->txn_id != get_expectedExecuteCount())
+            {
+                agCount++;
+                work_queue.enqueue(get_thd_id(), msg, true);
+                continue;
+            }
 #endif
         }
 
@@ -1000,6 +1003,7 @@ RC WorkerThread::process_execute_msg(Message *msg)
 
 #if CONSENSUS == RAFT
     }
+    set_expectedExecuteCount(get_batch_size() + msg->txn_id);
 #endif
 
     INC_STATS(_thd_id, tput_msg, 1);
