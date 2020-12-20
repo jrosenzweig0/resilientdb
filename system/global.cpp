@@ -350,7 +350,7 @@ void init_nextIndex_arr() {
  * for each server, index of highest log entry known to be replicated on server
  * (initialized to 0, increases monotonically)
  */
-int64_t matchIndex[NODE_CNT] = {0};
+uint64_t matchIndex[NODE_CNT] = {0};
 std::mutex matchIndMTX;
 
 /* Increments index of highest known log entry on node */
@@ -374,7 +374,7 @@ uint64_t get_node_matchIndex(uint64_t node) {
 }
 
 /* Set the index of the highest known log entry on node */
-void set_node_matchIndex(uint64_t node, int64_t ind) {
+void set_node_matchIndex(uint64_t node, uint64_t ind) {
 	if (node < g_node_cnt) {
 		matchIndMTX.lock();
 		if (matchIndex[node] < ind) {
@@ -385,8 +385,8 @@ void set_node_matchIndex(uint64_t node, int64_t ind) {
 }
 
 /* Gets the floored median of the matchIndex array */
-int64_t get_median_matchIndex() {
-	int64_t arr[NODE_CNT];
+uint64_t get_median_matchIndex() {
+	uint64_t arr[NODE_CNT];
 	matchIndMTX.lock();
 	std::copy(std::begin(matchIndex), std::end(matchIndex), std::begin(arr));
 	matchIndMTX.unlock();

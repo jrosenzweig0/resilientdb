@@ -270,14 +270,14 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
         fflush(stdout);
         // set_node_matchIndex(node, BlockChain->get_length()-1);
         // set_node_nextIndex(node, BlockChain->get_length());
-        set_node_matchIndex(node, int64_t (aer->matchIndex));
+        set_node_matchIndex(node, aer->matchIndex);
         set_node_nextIndex(node, aer->matchIndex + 1);
     } else if (get_node_nextIndex(node) > 0) {
         decr_node_nextIndex(node);
     }
 
     //if majority of replicas have matching index N with primary, set commitIndex to N
-    int64_t N = get_median_matchIndex();
+    uint64_t N = get_median_matchIndex();
     if ((N > get_commitIndex()) && (BlockChain->check_term_match_at(N, get_currentTerm()))) {
         set_commitIndex(N);
     }
