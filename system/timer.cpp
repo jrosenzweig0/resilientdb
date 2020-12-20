@@ -24,6 +24,66 @@ void Timer::set_data(uint64_t tst, string hsh, Message *cqry)
 	msg = cqry;
 }
 
+/*********** Raft Timers ***********/
+
+void LeaderTimer::init() {
+	timer = (Timer *)mem_allocator.alloc(sizeof(Timer));
+	new (timer) Timer();
+	period = AE_PERIOD;
+}
+
+void LeaderTimer::startTimer() {
+	tlock.lock();
+	timer->set_data(get_sys_clock(), "", nullptr);
+	tlock.unlock();
+}
+
+bool LeaderTimer::checkTimer() {
+	bool expired = false;
+	tlock.lock();
+	if (get_sys_clock() - timer->get_timestamp() < period) {
+		expired = true;
+	}
+	tlock.unlock();
+	return expired;
+}
+
+void LeaderTimer::endTimer() {
+	mem_allocator.free(timer, sizeof(Timer));
+}
+
+/* Might need to use ElectionTimer Constructor */
+ElectionTimer::ElectionTimer() :
+	mt(rd()),
+	dist(0, AE_PERIOD_MS)
+{}
+
+void ElectionTimer::init() {
+	timer = (Timer *)mem_allocator.alloc(sizeof(Timer));
+	new (timer) Timer();
+}
+
+void ElectionTimer::startTimer() {
+	tlock.lock();
+	timeout = AE_PERIOD + (this->dist(mt) * 1 * MILLION);
+	timer->set_data(get_sys_clock(), "", nullptr);
+	tlock.unlock();
+}
+
+bool ElectionTimer::checkTimer() {
+	bool expired = false;
+	tlock.lock();
+	if (get_sys_clock() - timer->get_timestamp() < timeout) {
+		expired = true;
+	}
+	tlock.unlock();
+	return expired;
+}
+
+void ElectionTimer::endTimer() {
+	mem_allocator.free(timer, sizeof(Timer));
+}
+
 /************************************/
 
 /* Start the timer for this transaction.
@@ -225,6 +285,8 @@ Timer *ClientTimer::fetchPendingRequests()
 /************************************/
 
 /* Timers */
+LeaderTimer *leader_timer;
+ElectionTimer *election_timer;
 
 ServerTimer *server_timer;
 ClientTimer *client_timer;

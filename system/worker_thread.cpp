@@ -754,6 +754,13 @@ RC WorkerThread::run()
         }
         process(msg);
 
+#if TIMER_ON
+        if (leader_timer->checkTimer()) {
+            append_entries();
+            leader_timer->startTimer();
+        }
+#endif
+
 #if CONSENSUS == PBFT
         ready_starttime = get_sys_clock();
         if (txn_man)

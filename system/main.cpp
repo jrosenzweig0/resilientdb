@@ -129,6 +129,17 @@ int main(int argc, char *argv[])
 #if TIMER_ON
     printf("Initializing timers... ");
     server_timer = new ServerTimer();
+
+#if CONSENSUS == RAFT
+    election_timer = new ElectionTimer();
+    election_timer->init();
+
+    leader_timer = new LeaderTimer();
+    leader_timer->init();
+    if (g_node_id == 0) {   // TODO: don't hardcode the leader
+        leader_timer->startTimer();
+    }
+#endif
 #endif
 
 #if LOCAL_FAULT || VIEW_CHANGES
@@ -293,6 +304,14 @@ int main(int argc, char *argv[])
         pthread_join(p_thds[i], NULL);
 
     endtime = get_server_clock();
+
+#if TIMER_ON
+#if CONSENSUS == RAFT
+    // remember to kill the timers
+    leader_timer->endTimer();
+    election_timer->endTimer();
+#endif
+#endif
 
     fflush(stdout);
     printf("PASS! SimTime = %f\n", (float)(endtime - starttime) / BILLION);

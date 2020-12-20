@@ -90,6 +90,12 @@ txn table - pool of all active transaction managers on the node
 - make sure that the batchrequests term field is initialized on client request
 - docker 3.0.0 is [broken](https://github.com/docker/for-mac/issues/5115)
 
+**12/19**
+- replication bugs are fixed, but client responses aren't working
+- timers added, for randomized timers and why you shouldn't use `rand()`, [watch this](https://channel9.msdn.com/Events/GoingNative/2013/rand-Considered-Harmful) and [read this](https://stackoverflow.com/questions/13445688/how-to-generate-a-random-number-in-c)
+
+
+
 #### Changelog
 
 `global`:
@@ -124,6 +130,12 @@ txn table - pool of all active transaction managers on the node
 
 `msg_queue`: 
 - (12/10) updated msq_queue to send AppendEntriesRPCs and AppendEntriesResponse
+
+`timer`:
+- (12/19) added timers for leader and follower
+
+`main`:
+- (12/19) initialize leader and election timers and kill them before process closes
 
 #### Useful Commands
 

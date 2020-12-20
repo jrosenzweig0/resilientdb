@@ -115,7 +115,10 @@ RC WorkerThread::process_append_entries(Message *msg) {
     cout << "\nReceived AppendEntriesRPC\n";
     fflush(stdout);
 
+#if TIMER_ON
     // TODO: reset timer
+    election_timer->startTimer();
+#endif
 
     AppendEntriesRPC *aerpc = (AppendEntriesRPC *)msg;
 
@@ -307,8 +310,10 @@ RC WorkerThread::process_append_entries_resp(Message *msg) {
     }
     fflush(stdout);
 
+#if !TIMER_ON
     // broadcast append entries
     append_entries(node);
+#endif
 
     return RCOK;
 }
@@ -451,323 +456,325 @@ RC WorkerThread::process_client_batch(Message *msg)
     // cout << "\nChain Length: " << BlockChain->get_length() << "\n";
 
     // broadcast AppendEntriesRPC if this is the first block on the chain
+#if !TIMER_ON
     if (is_first_block()) {
         first_block_sent();
         append_entries();
     }
+#endif
 
     return RCOK;
 }
 
-/**
- * Process incoming BatchRequests message from the Primary. (Prepare)
- *
- * This function is used by the non-primary or backup replicas to process an incoming
- * BatchRequests message sent by the primary replica. This processing would require 
- * sending messages of type PBFTPrepMessage, which correspond to the Prepare phase of 
- * the PBFT protocol. Due to network delays, it is possible that a repica may have 
- * received some messages of type PBFTPrepMessage and PBFTCommitMessage, prior to 
- * receiving this BatchRequests message.
- *
- * @param msg Batch of Transactions of type BatchRequests from the primary.
- * @return RC
- */
-RC WorkerThread::process_batch(Message *msg)
-{
-    uint64_t cntime = get_sys_clock();
+// /**
+//  * Process incoming BatchRequests message from the Primary. (Prepare)
+//  *
+//  * This function is used by the non-primary or backup replicas to process an incoming
+//  * BatchRequests message sent by the primary replica. This processing would require 
+//  * sending messages of type PBFTPrepMessage, which correspond to the Prepare phase of 
+//  * the PBFT protocol. Due to network delays, it is possible that a repica may have 
+//  * received some messages of type PBFTPrepMessage and PBFTCommitMessage, prior to 
+//  * receiving this BatchRequests message.
+//  *
+//  * @param msg Batch of Transactions of type BatchRequests from the primary.
+//  * @return RC
+//  */
+// RC WorkerThread::process_batch(Message *msg)
+// {
+//     uint64_t cntime = get_sys_clock();
 
-    BatchRequests *breq = (BatchRequests *)msg;
+//     BatchRequests *breq = (BatchRequests *)msg;
 
-    //printf("BatchRequests: TID:%ld : VIEW: %ld : THD: %ld\n",breq->txn_id, breq->view, get_thd_id());
-    //fflush(stdout);
+//     //printf("BatchRequests: TID:%ld : VIEW: %ld : THD: %ld\n",breq->txn_id, breq->view, get_thd_id());
+//     //fflush(stdout);
 
-    // Assert that only a non-primary replica has received this message.
-    assert(g_node_id != get_current_view(get_thd_id()));
+//     // Assert that only a non-primary replica has received this message.
+//     assert(g_node_id != get_current_view(get_thd_id()));
 
-    // Check if the message is valid.
-    validate_msg(breq);
+//     // Check if the message is valid.
+//     validate_msg(breq);
 
-#if VIEW_CHANGES
-    // Store the batch as it could be needed during view changes.
-    store_batch_msg(breq);
-#endif
+// #if VIEW_CHANGES
+//     // Store the batch as it could be needed during view changes.
+//     store_batch_msg(breq);
+// #endif
 
-    // Allocate transaction managers for all the transactions in the batch.
-    set_txn_man_fields(breq, 0);
+//     // Allocate transaction managers for all the transactions in the batch.
+//     set_txn_man_fields(breq, 0);
 
-#if TIMER_ON
-    // The timer for this client batch stores the hash of last request.
-    add_timer(breq, txn_man->get_hash());
-#endif
+// #if TIMER_ON
+//     // The timer for this client batch stores the hash of last request.
+//     add_timer(breq, txn_man->get_hash());
+// #endif
 
-    // Storing the BatchRequests message.
-    txn_man->set_primarybatch(breq);
+//     // Storing the BatchRequests message.
+//     txn_man->set_primarybatch(breq);
 
-    // Send Prepare messages.
-    txn_man->send_pbft_prep_msgs();
+//     // Send Prepare messages.
+//     txn_man->send_pbft_prep_msgs();
 
-    // End the counter for pre-prepare phase as prepare phase starts next.
-    double timepre = get_sys_clock() - cntime;
-    INC_STATS(get_thd_id(), time_pre_prepare, timepre);
+//     // End the counter for pre-prepare phase as prepare phase starts next.
+//     double timepre = get_sys_clock() - cntime;
+//     INC_STATS(get_thd_id(), time_pre_prepare, timepre);
 
-    // Only when BatchRequests message comes after some Prepare message.
-    for (uint64_t i = 0; i < txn_man->info_prepare.size(); i++)
-    {
-        // Decrement.
-        uint64_t num_prep = txn_man->decr_prep_rsp_cnt();
-        if (num_prep == 0)
-        {
-            txn_man->set_prepared();
-            break;
-        }
-    }
+//     // Only when BatchRequests message comes after some Prepare message.
+//     for (uint64_t i = 0; i < txn_man->info_prepare.size(); i++)
+//     {
+//         // Decrement.
+//         uint64_t num_prep = txn_man->decr_prep_rsp_cnt();
+//         if (num_prep == 0)
+//         {
+//             txn_man->set_prepared();
+//             break;
+//         }
+//     }
 
-    // If enough Prepare messages have already arrived.
-    if (txn_man->is_prepared())
-    {
-        // Send Commit messages.
-        txn_man->send_pbft_commit_msgs();
+//     // If enough Prepare messages have already arrived.
+//     if (txn_man->is_prepared())
+//     {
+//         // Send Commit messages.
+//         txn_man->send_pbft_commit_msgs();
 
-        double timeprep = get_sys_clock() - txn_man->txn_stats.time_start_prepare - timepre;
-        INC_STATS(get_thd_id(), time_prepare, timeprep);
-        double timediff = get_sys_clock() - cntime;
+//         double timeprep = get_sys_clock() - txn_man->txn_stats.time_start_prepare - timepre;
+//         INC_STATS(get_thd_id(), time_prepare, timeprep);
+//         double timediff = get_sys_clock() - cntime;
 
-        // Check if any Commit messages arrived before this BatchRequests message.
-        for (uint64_t i = 0; i < txn_man->info_commit.size(); i++)
-        {
-            uint64_t num_comm = txn_man->decr_commit_rsp_cnt();
-            if (num_comm == 0)
-            {
-                txn_man->set_committed();
-                break;
-            }
-        }
+//         // Check if any Commit messages arrived before this BatchRequests message.
+//         for (uint64_t i = 0; i < txn_man->info_commit.size(); i++)
+//         {
+//             uint64_t num_comm = txn_man->decr_commit_rsp_cnt();
+//             if (num_comm == 0)
+//             {
+//                 txn_man->set_committed();
+//                 break;
+//             }
+//         }
 
-        // If enough Commit messages have already arrived.
-        if (txn_man->is_committed())
-        {
-#if TIMER_ON
-            // End the timer for this client batch.
-            server_timer->endTimer(txn_man->hash);
-#endif
-            // Proceed to executing this batch of transactions.
-            send_execute_msg();
+//         // If enough Commit messages have already arrived.
+//         if (txn_man->is_committed())
+//         {
+// #if TIMER_ON
+//             // End the timer for this client batch.
+//             server_timer->endTimer(txn_man->hash);
+// #endif
+//             // Proceed to executing this batch of transactions.
+//             send_execute_msg();
 
-            // End the commit counter.
-            INC_STATS(get_thd_id(), time_commit, get_sys_clock() - txn_man->txn_stats.time_start_commit - timediff);
-        }
-    }
-    else
-    {
-        // Although batch has not prepared, still some commit messages could have arrived.
-        for (uint64_t i = 0; i < txn_man->info_commit.size(); i++)
-        {
-            txn_man->decr_commit_rsp_cnt();
-        }
-    }
+//             // End the commit counter.
+//             INC_STATS(get_thd_id(), time_commit, get_sys_clock() - txn_man->txn_stats.time_start_commit - timediff);
+//         }
+//     }
+//     else
+//     {
+//         // Although batch has not prepared, still some commit messages could have arrived.
+//         for (uint64_t i = 0; i < txn_man->info_commit.size(); i++)
+//         {
+//             txn_man->decr_commit_rsp_cnt();
+//         }
+//     }
 
-    // Release this txn_man for other threads to use.
-    bool ready = txn_man->set_ready();
-    assert(ready);
+//     // Release this txn_man for other threads to use.
+//     bool ready = txn_man->set_ready();
+//     assert(ready);
 
-    // UnSetting the ready for the txn id representing this batch.
-    txn_man = get_transaction_manager(msg->txn_id, 0);
-    while (true)
-    {
-        bool ready = txn_man->unset_ready();
-        if (!ready)
-        {
-            continue;
-        }
-        else
-        {
-            break;
-        }
-    }
+//     // UnSetting the ready for the txn id representing this batch.
+//     txn_man = get_transaction_manager(msg->txn_id, 0);
+//     while (true)
+//     {
+//         bool ready = txn_man->unset_ready();
+//         if (!ready)
+//         {
+//             continue;
+//         }
+//         else
+//         {
+//             break;
+//         }
+//     }
 
-    return RCOK;
-}
+//     return RCOK;
+// }
 
-/**
- * Checks if the incoming PBFTPrepMessage can be accepted.
- *
- * This functions checks if the hash and view of the commit message matches that of 
- * the Pre-Prepare message. Once 2f messages are received it returns a true and 
- * sets the `is_prepared` flag for furtue identification.
- *
- * @param msg PBFTPrepMessage.
- * @return bool True if the transactions of this batch are prepared.
- */
-bool WorkerThread::prepared(PBFTPrepMessage *msg)
-{
-    //cout << "Inside PREPARED: " << txn_man->get_txn_id() << "\n";
-    //fflush(stdout);
+// /**
+//  * Checks if the incoming PBFTPrepMessage can be accepted.
+//  *
+//  * This functions checks if the hash and view of the commit message matches that of 
+//  * the Pre-Prepare message. Once 2f messages are received it returns a true and 
+//  * sets the `is_prepared` flag for furtue identification.
+//  *
+//  * @param msg PBFTPrepMessage.
+//  * @return bool True if the transactions of this batch are prepared.
+//  */
+// bool WorkerThread::prepared(PBFTPrepMessage *msg)
+// {
+//     //cout << "Inside PREPARED: " << txn_man->get_txn_id() << "\n";
+//     //fflush(stdout);
 
-    // Once prepared is set, no processing for further messages.
-    if (txn_man->is_prepared())
-    {
-        return false;
-    }
+//     // Once prepared is set, no processing for further messages.
+//     if (txn_man->is_prepared())
+//     {
+//         return false;
+//     }
 
-    // If BatchRequests messages has not arrived yet, then return false.
-    if (txn_man->get_hash().empty())
-    {
-        // Store the message.
-        txn_man->info_prepare.push_back(msg->return_node);
-        return false;
-    }
-    else
-    {
-        if (!checkMsg(msg))
-        {
-            // If message did not match.
-            cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            cout << get_current_view(get_thd_id()) << " :: " << msg->view << "\n";
-            fflush(stdout);
-            return false;
-        }
-    }
+//     // If BatchRequests messages has not arrived yet, then return false.
+//     if (txn_man->get_hash().empty())
+//     {
+//         // Store the message.
+//         txn_man->info_prepare.push_back(msg->return_node);
+//         return false;
+//     }
+//     else
+//     {
+//         if (!checkMsg(msg))
+//         {
+//             // If message did not match.
+//             cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
+//             cout << get_current_view(get_thd_id()) << " :: " << msg->view << "\n";
+//             fflush(stdout);
+//             return false;
+//         }
+//     }
 
-    uint64_t prep_cnt = txn_man->decr_prep_rsp_cnt();
-    if (prep_cnt == 0)
-    {
-        txn_man->set_prepared();
-        return true;
-    }
+//     uint64_t prep_cnt = txn_man->decr_prep_rsp_cnt();
+//     if (prep_cnt == 0)
+//     {
+//         txn_man->set_prepared();
+//         return true;
+//     }
 
-    return false;
-}
+//     return false;
+// }
 
-/**
- * Processes incoming Prepare message.
- *
- * This functions precessing incoming messages of type PBFTPrepMessage. If a replica 
- * received 2f identical Prepare messages from distinct replicas, then it creates 
- * and sends a PBFTCommitMessage to all the other replicas.
- *
- * @param msg Prepare message of type PBFTPrepMessage from a replica.
- * @return RC
- */
-RC WorkerThread::process_pbft_prep_msg(Message *msg)
-{
-    //cout << "PBFTPrepMessage: TID: " << msg->txn_id << " FROM: " << msg->return_node_id << endl;
-    //fflush(stdout);
+// /**
+//  * Processes incoming Prepare message.
+//  *
+//  * This functions precessing incoming messages of type PBFTPrepMessage. If a replica 
+//  * received 2f identical Prepare messages from distinct replicas, then it creates 
+//  * and sends a PBFTCommitMessage to all the other replicas.
+//  *
+//  * @param msg Prepare message of type PBFTPrepMessage from a replica.
+//  * @return RC
+//  */
+// RC WorkerThread::process_pbft_prep_msg(Message *msg)
+// {
+//     //cout << "PBFTPrepMessage: TID: " << msg->txn_id << " FROM: " << msg->return_node_id << endl;
+//     //fflush(stdout);
 
-    // Start the counter for prepare phase.
-    if (txn_man->prep_rsp_cnt == 2 * g_min_invalid_nodes)
-    {
-        txn_man->txn_stats.time_start_prepare = get_sys_clock();
-    }
+//     // Start the counter for prepare phase.
+//     if (txn_man->prep_rsp_cnt == 2 * g_min_invalid_nodes)
+//     {
+//         txn_man->txn_stats.time_start_prepare = get_sys_clock();
+//     }
 
-    // Check if the incoming message is valid.
-    PBFTPrepMessage *pmsg = (PBFTPrepMessage *)msg;
-    validate_msg(pmsg);
+//     // Check if the incoming message is valid.
+//     PBFTPrepMessage *pmsg = (PBFTPrepMessage *)msg;
+//     validate_msg(pmsg);
 
-    // Check if sufficient number of Prepare messages have arrived.
-    if (prepared(pmsg))
-    {
-        // Send Commit messages.
-        txn_man->send_pbft_commit_msgs();
+//     // Check if sufficient number of Prepare messages have arrived.
+//     if (prepared(pmsg))
+//     {
+//         // Send Commit messages.
+//         txn_man->send_pbft_commit_msgs();
 
-        // End the prepare counter.
-        INC_STATS(get_thd_id(), time_prepare, get_sys_clock() - txn_man->txn_stats.time_start_prepare);
-    }
+//         // End the prepare counter.
+//         INC_STATS(get_thd_id(), time_prepare, get_sys_clock() - txn_man->txn_stats.time_start_prepare);
+//     }
 
-    return RCOK;
-}
+//     return RCOK;
+// }
 
-/**
- * Checks if the incoming PBFTCommitMessage can be accepted.
- *
- * This functions checks if the hash and view of the commit message matches that of 
- * the Pre-Prepare message. Once 2f+1 messages are received it returns a true and 
- * sets the `is_committed` flag for furtue identification.
- *
- * @param msg PBFTCommitMessage.
- * @return bool True if the transactions of this batch can be executed.
- */
-bool WorkerThread::committed_local(PBFTCommitMessage *msg)
-{
-    //cout << "Check Commit: TID: " << txn_man->get_txn_id() << "\n";
-    //fflush(stdout);
+// /**
+//  * Checks if the incoming PBFTCommitMessage can be accepted.
+//  *
+//  * This functions checks if the hash and view of the commit message matches that of 
+//  * the Pre-Prepare message. Once 2f+1 messages are received it returns a true and 
+//  * sets the `is_committed` flag for furtue identification.
+//  *
+//  * @param msg PBFTCommitMessage.
+//  * @return bool True if the transactions of this batch can be executed.
+//  */
+// bool WorkerThread::committed_local(PBFTCommitMessage *msg)
+// {
+//     //cout << "Check Commit: TID: " << txn_man->get_txn_id() << "\n";
+//     //fflush(stdout);
 
-    // Once committed is set for this transaction, no further processing.
-    if (txn_man->is_committed())
-    {
-        return false;
-    }
+//     // Once committed is set for this transaction, no further processing.
+//     if (txn_man->is_committed())
+//     {
+//         return false;
+//     }
 
-    // If BatchRequests messages has not arrived, then hash is empty; return false.
-    if (txn_man->get_hash().empty())
-    {
-        //cout << "hash empty: " << txn_man->get_txn_id() << "\n";
-        //fflush(stdout);
-        txn_man->info_commit.push_back(msg->return_node);
-        return false;
-    }
-    else
-    {
-        if (!checkMsg(msg))
-        {
-            // If message did not match.
-            //cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
-            //cout << get_current_view(get_thd_id()) << " :: " << msg->view << "\n";
-            //fflush(stdout);
-            return false;
-        }
-    }
+//     // If BatchRequests messages has not arrived, then hash is empty; return false.
+//     if (txn_man->get_hash().empty())
+//     {
+//         //cout << "hash empty: " << txn_man->get_txn_id() << "\n";
+//         //fflush(stdout);
+//         txn_man->info_commit.push_back(msg->return_node);
+//         return false;
+//     }
+//     else
+//     {
+//         if (!checkMsg(msg))
+//         {
+//             // If message did not match.
+//             //cout << txn_man->get_hash() << " :: " << msg->hash << "\n";
+//             //cout << get_current_view(get_thd_id()) << " :: " << msg->view << "\n";
+//             //fflush(stdout);
+//             return false;
+//         }
+//     }
 
-    uint64_t comm_cnt = txn_man->decr_commit_rsp_cnt();
-    if (comm_cnt == 0 && txn_man->is_prepared())
-    {
-        txn_man->set_committed();
-        return true;
-    }
+//     uint64_t comm_cnt = txn_man->decr_commit_rsp_cnt();
+//     if (comm_cnt == 0 && txn_man->is_prepared())
+//     {
+//         txn_man->set_committed();
+//         return true;
+//     }
 
-    return false;
-}
+//     return false;
+// }
 
-/**
- * Processes incoming Commit message.
- *
- * This functions precessing incoming messages of type PBFTCommitMessage. If a replica 
- * received 2f+1 identical Commit messages from distinct replicas, then it asks the 
- * execute-thread to execute all the transactions in this batch.
- *
- * @param msg Commit message of type PBFTCommitMessage from a replica.
- * @return RC
- */
-RC WorkerThread::process_pbft_commit_msg(Message *msg)
-{
-    //cout << "PBFTCommitMessage: TID " << msg->txn_id << " FROM: " << msg->return_node_id << "\n";
-    //fflush(stdout);
+// /**
+//  * Processes incoming Commit message.
+//  *
+//  * This functions precessing incoming messages of type PBFTCommitMessage. If a replica 
+//  * received 2f+1 identical Commit messages from distinct replicas, then it asks the 
+//  * execute-thread to execute all the transactions in this batch.
+//  *
+//  * @param msg Commit message of type PBFTCommitMessage from a replica.
+//  * @return RC
+//  */
+// RC WorkerThread::process_pbft_commit_msg(Message *msg)
+// {
+//     //cout << "PBFTCommitMessage: TID " << msg->txn_id << " FROM: " << msg->return_node_id << "\n";
+//     //fflush(stdout);
 
-    if (txn_man->commit_rsp_cnt == 2 * g_min_invalid_nodes + 1)
-    {
-        txn_man->txn_stats.time_start_commit = get_sys_clock();
-    }
+//     if (txn_man->commit_rsp_cnt == 2 * g_min_invalid_nodes + 1)
+//     {
+//         txn_man->txn_stats.time_start_commit = get_sys_clock();
+//     }
 
-    // Check if message is valid.
-    PBFTCommitMessage *pcmsg = (PBFTCommitMessage *)msg;
-    validate_msg(pcmsg);
+//     // Check if message is valid.
+//     PBFTCommitMessage *pcmsg = (PBFTCommitMessage *)msg;
+//     validate_msg(pcmsg);
 
-    txn_man->add_commit_msg(pcmsg);
+//     txn_man->add_commit_msg(pcmsg);
 
-    // Check if sufficient number of Commit messages have arrived.
-    if (committed_local(pcmsg))
-    {
-#if TIMER_ON
-        // End the timer for this client batch.
-        server_timer->endTimer(txn_man->hash);
-#endif
+//     // Check if sufficient number of Commit messages have arrived.
+//     if (committed_local(pcmsg))
+//     {
+// #if TIMER_ON
+//         // End the timer for this client batch.
+//         server_timer->endTimer(txn_man->hash);
+// #endif
 
-        // Add this message to execute thread's queue.
-        send_execute_msg();
+//         // Add this message to execute thread's queue.
+//         send_execute_msg();
 
-        INC_STATS(get_thd_id(), time_commit, get_sys_clock() - txn_man->txn_stats.time_start_commit);
-    }
+//         INC_STATS(get_thd_id(), time_commit, get_sys_clock() - txn_man->txn_stats.time_start_commit);
+//     }
 
-    return RCOK;
-}
+//     return RCOK;
+// }
 
 #endif

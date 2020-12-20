@@ -22,6 +22,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <math.h>
+#include <random>
 
 #include "pthread.h"
 #include "config.h"

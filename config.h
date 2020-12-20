@@ -140,12 +140,14 @@
 #define STAT_ARR_SIZE 1024 
 #define PROG_TIMER 10 * BILLION 
 #define SEQ_BATCH_TIMER 5 * 1 * MILLION 
+#define AE_PERIOD_MS 1000
+#define AE_PERIOD AE_PERIOD_MS * 1 * MILLION // ns
 #define SEED 0 
 #define SHMEM_ENV false 
 #define ENVIRONMENT_EC2 false  
 #define PARTITIONED 0 
 #define REPLICATED 1 
-// To select the amount of time to warmup and run. 
+// To select the amount of time to warmup and run. time in nanoseconds
 #define DONE_TIMER 1 * 60 * BILLION 
 #define WARMUP_TIMER 1 * 60 * BILLION 
 // Select the consensus algorithm to run.  
@@ -190,7 +192,7 @@
 #define EXE_TIMEOUT  10000000000  
 #define CEXE_TIMEOUT 12000000000  
 // To turn the timer on. 
-#define TIMER_ON false 
+#define TIMER_ON true
 //Global variables to choose the encryptation algorithm 
 #define USE_CRYPTO true 
 #define CRYPTO_METHOD_RSA false //Options RSA,  

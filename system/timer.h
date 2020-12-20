@@ -1,5 +1,6 @@
 #include "message.h"
 #include <mutex>
+#include <random>
 
 #if TIMER_ON
 
@@ -15,6 +16,45 @@ public:
 	Message *get_msg();
 	void set_data(uint64_t tst, string hsh, Message *cqry);
 };
+
+/********** Raft Timers **********/
+
+// Timer for Primary/Leader (to send AppendEntries)
+class LeaderTimer {
+	Timer *timer;
+
+	// heartbeat period
+	uint64_t period;
+	// bool timer_state;
+
+public:
+	void init();		// always call once before using
+	void startTimer(); // calling startTimer will reset the timer
+	bool checkTimer();
+	void endTimer();
+};
+
+// Timer for ElectionTimeout on Followers
+class ElectionTimer {
+	// random
+	std::random_device rd;
+	std::mt19937_64 mt;
+	std::uniform_int_distribution<uint64_t> dist;
+
+	Timer *timer;
+
+	// timeout period, randomized on start
+	uint64_t timeout;
+
+public:
+	ElectionTimer();
+	void init();
+	void startTimer(); // calling startTimer will reset the timer
+	bool checkTimer();
+	void endTimer();
+};
+
+/*********************************/
 
 // Timer for servers
 class ServerTimer
@@ -49,6 +89,9 @@ public:
 };
 
 /************************************/
+
+extern LeaderTimer *leader_timer;
+extern ElectionTimer *election_timer;
 
 extern ServerTimer *server_timer;
 extern ClientTimer *client_timer;
