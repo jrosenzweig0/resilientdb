@@ -194,7 +194,7 @@
 // To turn the timer on. 
 #define TIMER_ON true
 //Global variables to choose the encryptation algorithm 
-#define USE_CRYPTO false 
+#define USE_CRYPTO true
 #define CRYPTO_METHOD_RSA false //Options RSA,  
 #define CRYPTO_METHOD_ED25519 true // Option ED25519 
 #define CRYPTO_METHOD_CMAC_AES true // CMAC<AES> 
